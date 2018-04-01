@@ -385,6 +385,7 @@ proc build(
     bits: string,
     roots: seq[int],
     parent: int) =
+  ## build codes
   assert n.kind == ntNode
   assert bits.len <= 4
   var
@@ -400,6 +401,7 @@ proc build(
       bb = b shl offset
     for i in 0 ..< 2 ^ offset:
       assert isEmpty(pdt[parent][bb + i])
+      assert roots[rootFrom(offset, i)] != -1  # maybe
       pdt[parent][bb + i].sym = getValue(n)
       pdt[parent][bb + i].nxt = roots[rootFrom(offset, i)]
       pdt[parent][bb + i].flags.incl({flgContinue, flgSym})
@@ -422,7 +424,29 @@ proc build(
     n: Node,
     pdt: var Table,
     bits: string,
+    roots: seq[int]) =
+  ## build codes with offset
+  if len(bits) == 3:
+    return
+  assert n.kind == ntNode
+  var
+    bits = bits
+    b = 0
+  bits.add(n.c)
+  discard parseBin(bits, b)
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, pdt, bits, roots)
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, pdt, "", roots, roots[rootFrom(len(bits), b)])
+
+proc build(
+    n: Node,
+    pdt: var Table,
+    bits: string,
     roots: var seq[int]) =
+  ## build roots
   if len(bits) == 3:
     return
   assert n.kind == ntNode
@@ -434,13 +458,9 @@ proc build(
   pdt.add(initRow())
   assert roots[rootFrom(len(bits), b)] == -1
   roots[rootFrom(len(bits), b)] = pdt.high
-  let parent = pdt.high
   for nn in n.nxt:
     assert nn.kind == ntNode
     build(nn, pdt, bits, roots)
-  for nn in n.nxt:
-    assert nn.kind == ntNode
-    build(nn, pdt, "", roots, parent)
 
 proc build(n: Node): Table =
   ##[
@@ -471,20 +491,27 @@ proc build(n: Node): Table =
         | ...
   ]##
   result = newSeqOfCap[Row](1_000)
-  var roots = newSeq[int](16)
+  var roots = newSeq[int](15)
   for i in 0 ..< roots.len:
     roots[i] = -1
   result.add(initRow())
   roots[0] = result.high
+  # build roots
   for nn in n.nxt:
     assert nn.kind == ntNode
     build(nn, result, "", roots)
+  let r = roots
+  # build offset codes
   for nn in n.nxt:
     assert nn.kind == ntNode
-    build(nn, result, "", roots, 0)
+    build(nn, result, "", r)
+  # build root codes
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, result, "", r, 0)
   # padding
   for i in 0 ..< 4:
-    let offset = rootFrom(i, 0x0f shr i)
+    let offset = rootFrom(i, 0x0f shr (4 - i))
     result[roots[offset]][0x0f].flags.incl(flgDone)
 
 proc toInt(f: set[Flag]): int =
@@ -529,7 +556,7 @@ when isMainModule:
   var table = build(buildTrie(parse(rawHC)))
   echo table.len
 
-  var f = open("./src/huffman_data.nim", fmWrite)
+  var f = open("./src/hpack/huffman_data.nim", fmWrite)
   try:
     f.write(hcTemplate % [
       $flgSym.ord,

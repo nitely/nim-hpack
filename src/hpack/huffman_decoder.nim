@@ -35,7 +35,7 @@ when isMainModule:
   block:
     echo "Test some codes"
     let hc = @[
-      byte(0b11111111), byte(0b11000111),
-      byte(0b11111111), byte(0b11111101),
-      byte(0b10001111)]
+      byte 0b11111111, 0b11000111,
+      0b11111111, 0b11111101,
+      0b10001111]
     doAssert(hcdecode(hc) == "" & char(0) & char(1))
