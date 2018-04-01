@@ -1,3 +1,3 @@
 nimcache/
-src/hpack
 gen/huffman
+src/hpack/huffman_decoder

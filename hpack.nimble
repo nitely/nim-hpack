@@ -13,7 +13,7 @@ task gen, "Gen data":
   exec "nim c -r gen/huffman.nim"
 
 task test, "Test":
-  exec "nim c -r src/hpack.nim"
+  exec "nim c -r src/hpack/huffman_decoder.nim"
 
 task docs, "Docs":
   exec "nim doc2 -o:./docs/index.html ./src/hpack.nim"
