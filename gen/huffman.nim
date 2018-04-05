@@ -290,9 +290,6 @@ type
 proc newNode(c = '@'): Node =
   Node(kind: ntNode, nxt: @[], c: c)
 
-proc isRoot(n: Node): bool =
-  n.kind == ntNode and n.c == '@'
-
 proc newNodeValue(v: int): Node =
   Node(kind: ntValue, v: v)
 
@@ -362,7 +359,7 @@ proc initRow(): Row =
   for i in 0 ..< len(result):
     result[i] = initPartialCode()
 
-proc getValue(n: Node): int =
+proc value(n: Node): int =
   ## Return sym or -1
   result = -1
   for nn in n.nxt:
@@ -394,7 +391,7 @@ proc build(
     b = 0
   bits.add(n.c)
   discard parseBin(bits, b)
-  if getValue(n) != -1:
+  if value(n) != -1:
     assert len(bits) in {1 .. 4}
     let
       offset = 4 - len(bits)
@@ -402,7 +399,7 @@ proc build(
     for i in 0 ..< 2 ^ offset:
       assert isEmpty(pdt[parent][bb + i])
       assert roots[rootFrom(offset, i)] != -1  # maybe
-      pdt[parent][bb + i].sym = getValue(n)
+      pdt[parent][bb + i].sym = value(n)
       pdt[parent][bb + i].nxt = roots[rootFrom(offset, i)]
       pdt[parent][bb + i].flags.incl({flgContinue, flgSym})
       # padding
@@ -519,22 +516,23 @@ proc toInt(f: set[Flag]): int =
   for ff in f:
     result = result or ff.ord
 
-proc strTable(t: Table): string =
+proc `$`(t: Table): string =
   var rows = newSeq[string]()
   for r in t:
     var row = newSeq[string]()
     for c in r:
-      var sym = c.sym
-      if sym == -1:
-        sym = 0
-      var flags = c.flags
-      # EOS is not allowed
-      if sym == 256:
-        flags = {}
-        sym = 0
-      var nxt = c.nxt
-      if nxt == -1:
-        nxt = 0
+      # EOS (256) is not allowed
+      let
+        sym = case c.sym
+          of -1: 0
+          of 256: 0
+          else: c.sym
+        flags = case c.sym
+          of 256: {}
+          else: c.flags
+        nxt = case c.nxt
+          of -1: 0
+          else: c.nxt
       row.add(
         "[$#'u8, $#, $#]" % [
           $nxt, $sym, $toInt(flags)])
@@ -562,7 +560,7 @@ when isMainModule:
       $flgSym.ord,
       $flgContinue.ord,
       $flgDone.ord,
-      strTable(table)])
+      $table])
   finally:
     close(f)
 

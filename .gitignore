@@ -1,3 +1,4 @@
 nimcache/
 gen/huffman
+gen/static_table
 src/hpack/huffman_decoder
