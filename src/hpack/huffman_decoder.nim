@@ -14,13 +14,15 @@ template consume(bits) {.dirty.} =
   if hcfContinue notin state[stFlags.ord]:
     raise newException(ValueError, "Invalid Huffman code")
   if hcfSym in state[stFlags.ord]:
-    if i > result.high:
-      result.setLen(len(result) * 2)
     result[i] = state[stSym.ord].char
     inc i
 
-proc hcdecode*(s: seq[byte]): string =
-  result = newString(32)
+proc hcdecode*(s: openArray[byte]): string =
+  # All codes are > 4 bits, so the
+  # decoded string can never take
+  # more than twise the size of the
+  # number of octects
+  result = newString(len(s) * 2)
   var
     state = [0'u8, 0, 0]
     i = 0
