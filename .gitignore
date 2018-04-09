@@ -3,3 +3,4 @@ gen/huffman
 gen/static_table
 src/hpack/huffman_decoder
 src/hpack/decoder
+tests/tests
