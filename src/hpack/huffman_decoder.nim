@@ -12,26 +12,29 @@ proc contains(fs: uint8, f: HcFlag): bool =
 template consume(bits) {.dirty.} =
   state = hcTable[state[stNxt.ord]][bits]
   if hcfContinue notin state[stFlags.ord]:
-    raise newException(ValueError, "Invalid Huffman code")
+    result = -1
+    return
   if hcfSym in state[stFlags.ord]:
-    result[i] = state[stSym.ord].char
+    d[i] = state[stSym.ord].char
     inc i
 
-proc hcdecode*(s: openArray[byte]): string =
-  # All codes are > 4 bits, so the
-  # decoded string can never take
-  # more than twise the size of the
-  # number of octects
-  result = newString(len(s) * 2)
+proc hcdecode*(s: openArray[byte], d: var string): int =
+  ## Huffman decoder.
+  ## Return -1 on error.
+  ## Decoded string is appended to param ``d``.
+  ## If there's an error, ``d``
+  ## may contain a partial decoded string
   var
     state = [0'u8, 0, 0]
-    i = 0
+    i = len(d)
+  d.setLen(len(d) + len(s) * 2)
   for b in s:
     consume(b shr 4)
     consume(b and 0x0f)
   if hcfDone notin state[stFlags.ord]:
-    raise newException(ValueError, "Invalid Huffman code")
-  result.setLen(i)
+    result = -1
+    return
+  d.setLen(i)
 
 when isMainModule:
   block:
@@ -40,4 +43,6 @@ when isMainModule:
       byte 0b11111111, 0b11000111,
       0b11111111, 0b11111101,
       0b10001111]
-    doAssert(hcdecode(hc) == "" & char(0) & char(1))
+    var d = ""
+    doAssert(hcdecode(hc, d) != -1)
+    doAssert(d == "" & char(0) & char(1))
