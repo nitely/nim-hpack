@@ -42,8 +42,12 @@ proc intdecode*(s: openArray[byte], n: int, d: var int): int =
 
 type
   DecodedStr* = object
-    s: string
-    b: seq[int]
+    ## A decoded string contains
+    ## a string of all header/value
+    ## joined together and a
+    ## sequence of their boundaries
+    s*: string
+    b*: seq[int]
 
 proc initDecodedStr*(): DecodedStr =
   DecodedStr(s: "", b: @[])
@@ -52,9 +56,37 @@ proc reset*(d: var DecodedStr) =
   d.s.setLen(0)
   d.b.setLen(0)
 
-proc add(d: var DecodedStr, s: string) =
+proc add*(d: var DecodedStr, s: string) =
   d.s.add(s)
   d.b.add(d.s.len)
+
+iterator items(
+    d: DecodedStr): tuple[n: Slice[int], v: Slice[int]] {.inline.} =
+  ## Iterate over header names and values
+  ##
+  ## .. code-block:: nim
+  ##   var
+  ##     i = 0
+  ##     ds = initDecodedStr()
+  ##   ds.add("my-header")
+  ##   ds.add("my-value")
+  ##   for h in ds:
+  ##     assert ds.s[h.n] == "my-header"
+  ##     assert ds.s[h.v] == "my-value"
+  ##     inc i
+  ##   assert i == 1
+  ##
+  assert d.b.len mod 2 == 0
+  var i, j = 0
+  #while k < d.b.len:
+  #  yield (n: i ..< d.b[k], v: d.b[k] ..< d.b[k+1])
+  #  i = d.b[k+1]
+  #  inc(k, 2)
+  for k, b in d.b:
+    if k mod 2 != 0:
+      yield (n: j ..< i, v: i ..< b)
+    j = i
+    i = b
 
 proc strdecode(s: openArray[byte], d: var DecodedStr): int =
   ## Decode a literal string.
@@ -193,6 +225,19 @@ proc hdecode(s: seq[byte], h: var Headers, d: var DecodedStr): int =
     return
 
 when isMainModule:
+  block:
+    echo "Test decodedStr"
+    var
+      i = 0
+      ds = initDecodedStr()
+    ds.add("my-header")
+    ds.add("my-value")
+    for h in ds:
+      assert ds.s[h.n] == "my-header"
+      assert ds.s[h.v] == "my-value"
+      inc i
+    assert i == 1
+
   block:
     echo "Test Encoding 10 Using a 5-Bit Prefix"
     var
