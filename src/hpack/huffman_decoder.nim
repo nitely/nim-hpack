@@ -17,17 +17,20 @@ template consume(bits) {.dirty.} =
   if hcfSym in state[stFlags.ord]:
     d[i] = state[stSym.ord].char
     inc i
+    inc result
 
 proc hcdecode*(s: openArray[byte], d: var string): int =
   ## Huffman decoder.
+  ## Return length of the decoded string.
   ## Return -1 on error.
   ## Decoded string is appended to param ``d``.
   ## If there's an error, ``d``
   ## may contain a partial decoded string
+  result = 0
   var
     state = [0'u8, 0, 0]
-    i = len(d)
-  d.setLen(len(d) + len(s) * 2)
+    i = d.len
+  d.setLen(d.len + s.len * 2)
   for b in s:
     consume(b shr 4)
     consume(b and 0x0f)

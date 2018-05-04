@@ -40,7 +40,23 @@ proc intdecode*(s: openArray[byte], n: int, d: var int): int =
   if cb shr 7 == 1:
     result = -1
 
-proc strdecode(s: openArray[byte], d: var string): int =
+type
+  DecodedStr* = object
+    s: string
+    b: seq[int]
+
+proc initDecodedStr*(): DecodedStr =
+  DecodedStr(s: "", b: @[])
+
+proc reset*(d: var DecodedStr) =
+  d.s.setLen(0)
+  d.b.setLen(0)
+
+proc add(d: var DecodedStr, s: string) =
+  d.s.add(s)
+  d.b.add(d.s.len)
+
+proc strdecode(s: openArray[byte], d: var DecodedStr): int =
   ## Decode a literal string.
   ## Return number of consumed octets.
   ## Return ``-1`` on error.
@@ -59,23 +75,25 @@ proc strdecode(s: openArray[byte], d: var string): int =
     result = -1
     return
   if s[0] shr 7 == 1:  # huffman encoded
-    if hcdecode(toOpenArray(s, n, result-1), d) == -1:
+    if hcdecode(toOpenArray(s, n, result-1), d.s) == -1:
       result = -1
       return
+    d.b.add(d.s.len-1)
   else:
-    let j = len(d)
-    d.setLen(len(d) + result-n)
+    let j = d.s.len
+    d.s.setLen(d.s.len + result-n)
     for i in 0 ..< result-n:
-      d[j+i] = s[n+i].char
+      d.s[j+i] = s[n+i].char
+    d.b.add(d.s.len-1)
 
 type
   Header = object
     h: string
     spl: int
   Headers = Deque[Header]
-  ## Headers dynamic list
+    ## Headers dynamic list
 
-proc hname(h: Headers, d: var string, i: int): int =
+proc hname(h: Headers, d: var DecodedStr, i: int): int =
   assert i > 0
   result = 0
   var i = i-1
@@ -89,7 +107,7 @@ proc hname(h: Headers, d: var string, i: int): int =
   else:
     result = -1
 
-proc header(h: Headers, d: var string, i: int): int =
+proc header(h: Headers, d: var DecodedStr, i: int): int =
   assert i > 0
   result = 0
   var i = i-1
@@ -106,7 +124,7 @@ proc header(h: Headers, d: var string, i: int): int =
 proc litdecode(
     s: seq[byte],
     h: var Headers,
-    d: var string,
+    d: var DecodedStr,
     np: int,
     store: static[bool]): int =
   ## Decode literal header field:
@@ -145,7 +163,7 @@ proc litdecode(
       h: "hnamehvalue",
       spl: 5))
 
-proc hdecode(s: seq[byte], h: var Headers, d: var string): int =
+proc hdecode(s: seq[byte], h: var Headers, d: var DecodedStr): int =
   ## Decode a header.
   ## Return number of consmed
   ## octets, or -1 on error
@@ -250,9 +268,9 @@ when isMainModule:
         0b01101101, 0b00101101,
         0b01101011, 0b01100101,
         0b01111001]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "custom-key")
+    doAssert(d.s == "custom-key")
   block:
     var
       ic = @[
@@ -263,9 +281,9 @@ when isMainModule:
         0b01101000, 0b01100101,
         0b01100001, 0b01100100,
         0b01100101, 0b01110010]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "custom-header")
+    doAssert(d.s == "custom-header")
   block:
     var
       ic = @[
@@ -276,9 +294,9 @@ when isMainModule:
         0b00101111, 0b01110000,
         0b01100001, 0b01110100,
         0b01101000]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "/sample/path")
+    doAssert(d.s == "/sample/path")
   block:
     var
       ic = @[
@@ -287,9 +305,9 @@ when isMainModule:
         0b01110011, 0b01110111,
         0b01101111, 0b01110010,
         0b01100100]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "password")
+    doAssert(d.s == "password")
   block:
     var
       ic = @[
@@ -297,9 +315,9 @@ when isMainModule:
         0b01100101, 0b01100011,
         0b01110010, 0b01100101,
         0b01110100]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "secret")
+    doAssert(d.s == "secret")
   block:
     var
       ic = @[
@@ -311,9 +329,9 @@ when isMainModule:
         0b01101100, 0b01100101,
         0b00101110, 0b01100011,
         0b01101111, 0b01101101]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "www.example.com")
+    doAssert(d.s == "www.example.com")
   block:
     var
       ic = @[
@@ -322,9 +340,9 @@ when isMainModule:
         0b01100011, 0b01100001,
         0b01100011, 0b01101000,
         0b01100101]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "no-cache")
+    doAssert(d.s == "no-cache")
   block:
     echo "Test Request Examples with Huffman Coding"
     var
@@ -336,9 +354,9 @@ when isMainModule:
         0b10100000, 0b10101011,
         0b10010000, 0b11110100,
         0b11111111]
-      d = ""
+      d = initDecodedStr()
     doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d == "www.example.com")
+    doAssert(d.s == "www.example.com")
 
   proc toBytes(s: seq[uint16]): seq[byte] =
     result = newSeqOfCap[byte](len(s) * 2)
@@ -353,10 +371,10 @@ when isMainModule:
         0x400a'u16, 0x6375, 0x7374, 0x6f6d,
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
-      d = ""
+      d = initDecodedStr()
       h = initDeque[Header](32)
     doAssert(hdecode(ic, h, d) == ic.len)
-    doAssert(d == "custom-keycustom-header")
-    echo d
+    doAssert(d.s == "custom-keycustom-header")
+    echo d.s
     doAssert(h.len == 1)
     # todo: check header in h

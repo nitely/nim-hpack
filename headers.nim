@@ -1,3 +1,16 @@
+import unicode
+import graphemes
+
+echo "\r\L".graphemeLen(0)
+echo "\r\L".graphemeLenAt(0)
+
+proc main() =
+  var x = ""
+  x.add("abc\n")
+  x.add(r"\u123")
+  x.add("\nqwe")
+  raise newException(ValueError, x)
+main()
 
 type
   Queue = object
@@ -23,6 +36,7 @@ proc dequeue(q: var Queue): int =
   q.tail = (q.tail+1) mod q.data.len
   dec q.pos
 
+#[
 var x = initQueue(2)
 x.enqueue(1)
 echo x.dequeue()
@@ -33,7 +47,10 @@ x.enqueue(5)
 echo x.data
 x.enqueue(10)
 echo x.data
+]#
 
+
+#[
 type
   StrQueue = object
     datastr: string
@@ -43,7 +60,7 @@ type
     pos: int
 
 proc initStrQueue(size: int): StrQueue =
-  Queue(
+  StrQueue(
     datastr: newString(200),
     data: newSeq[Slice[int]](size),
     head: size-1,
@@ -64,3 +81,4 @@ proc dequeue(q: var StrQueue): int =
   result = q.data[q.tail]
   q.tail = (q.tail+1) mod q.data.len
   dec q.pos
+]#
