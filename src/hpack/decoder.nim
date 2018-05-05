@@ -48,9 +48,21 @@ type
     ## sequence of their boundaries
     s*: string
     b*: seq[int]
+  DecodedSlice* = tuple
+    n: Slice[int]
+    v: Slice[int]
 
 proc initDecodedStr*(): DecodedStr =
   DecodedStr(s: "", b: @[])
+
+proc `[]`(d: DecodedStr, i: BackwardsIndex): DecodedSlice =
+  #todo: fix? test?
+  assert i.int >= d.b.len div 2
+  assert d.b.len mod 2 == 0
+  result.n.a = if d.b.len > 2*i.int: d.b[^(3*i.int)] else: 0
+  result.n.b = d.b[^(2*i.int)]-1
+  result.v.a = d.b[^(2*i.int)]
+  result.v.b = d.b[^(1*i.int)]-1
 
 proc reset*(d: var DecodedStr) =
   d.s.setLen(0)
@@ -60,8 +72,7 @@ proc add*(d: var DecodedStr, s: string) =
   d.s.add(s)
   d.b.add(d.s.len)
 
-iterator items(
-    d: DecodedStr): tuple[n: Slice[int], v: Slice[int]] {.inline.} =
+iterator items(d: DecodedStr): DecodedSlice {.inline.} =
   ## Iterate over header names and values
   ##
   ## .. code-block:: nim
@@ -110,22 +121,22 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
     if hcdecode(toOpenArray(s, n, result-1), d.s) == -1:
       result = -1
       return
-    d.b.add(d.s.len-1)
+    d.b.add(d.s.len)
   else:
     let j = d.s.len
     d.s.setLen(d.s.len + result-n)
     for i in 0 ..< result-n:
       d.s[j+i] = s[n+i].char
-    d.b.add(d.s.len-1)
+    d.b.add(d.s.len)
 
 type
   Header = object
     h: string
     spl: int
-  Headers = Deque[Header]
+  DynHeaders = Deque[Header]
     ## Headers dynamic list
 
-proc hname(h: Headers, d: var DecodedStr, i: int): int =
+proc hname(h: DynHeaders, d: var DecodedStr, i: int): int =
   assert i > 0
   result = 0
   var i = i-1
@@ -139,7 +150,7 @@ proc hname(h: Headers, d: var DecodedStr, i: int): int =
   else:
     result = -1
 
-proc header(h: Headers, d: var DecodedStr, i: int): int =
+proc header(h: DynHeaders, d: var DecodedStr, i: int): int =
   assert i > 0
   result = 0
   var i = i-1
@@ -155,7 +166,7 @@ proc header(h: Headers, d: var DecodedStr, i: int): int =
 
 proc litdecode(
     s: seq[byte],
-    h: var Headers,
+    h: var DynHeaders,
     d: var DecodedStr,
     np: int,
     store: static[bool]): int =
@@ -190,12 +201,13 @@ proc litdecode(
     return
   inc(result, nv)
   when store:
-    # todo: fixme
+    let hsl = d[^1]
     h.addFirst(Header(
-      h: "hnamehvalue",
-      spl: 5))
+      # todo: this makes 2 copies, fix
+      h: d.s[hsl.n.a .. hsl.v.b],
+      spl: hsl.v.a))
 
-proc hdecode(s: seq[byte], h: var Headers, d: var DecodedStr): int =
+proc hdecode(s: seq[byte], h: var DynHeaders, d: var DecodedStr): int =
   ## Decode a header.
   ## Return number of consmed
   ## octets, or -1 on error
@@ -419,7 +431,12 @@ when isMainModule:
       d = initDecodedStr()
       h = initDeque[Header](32)
     doAssert(hdecode(ic, h, d) == ic.len)
-    doAssert(d.s == "custom-keycustom-header")
-    echo d.s
-    doAssert(h.len == 1)
+    var i = 0
+    for h in d:
+      doAssert(d.s[h.n] == "custom-key")
+      doAssert(d.s[h.v] == "custom-header")
+      inc i
+    doAssert i == 1
+    doAssert h.len == 1
+    echo h[0]
     # todo: check header in h
