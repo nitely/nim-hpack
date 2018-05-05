@@ -56,13 +56,13 @@ proc initDecodedStr*(): DecodedStr =
   DecodedStr(s: "", b: @[])
 
 proc `[]`(d: DecodedStr, i: BackwardsIndex): DecodedSlice =
-  #todo: fix? test?
-  assert i.int >= d.b.len div 2
+  assert i.int <= d.b.len div 2
   assert d.b.len mod 2 == 0
-  result.n.a = if d.b.len > 2*i.int: d.b[^(3*i.int)] else: 0
-  result.n.b = d.b[^(2*i.int)]-1
-  result.v.a = d.b[^(2*i.int)]
-  result.v.b = d.b[^(1*i.int)]-1
+  let ix = 2*i.int
+  result.n.a = if ix == d.b.len: 0 else: d.b[^(ix+1)]
+  result.n.b = d.b[^ix]-1
+  result.v.a = d.b[^ix]
+  result.v.b = d.b[^(ix-1)]-1
 
 proc reset*(d: var DecodedStr) =
   d.s.setLen(0)
@@ -132,7 +132,7 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
 type
   Header = object
     h: string
-    spl: int
+    b: int
   DynHeaders = Deque[Header]
     ## Headers dynamic list
 
@@ -145,8 +145,8 @@ proc hname(h: DynHeaders, d: var DecodedStr, i: int): int =
     d.add(headersTable[i][0])
   elif i < i-len(headersTable):
     let hr = h[i-len(headersTable)]
-    echo hr.h[0 ..< hr.spl]
-    d.add(hr.h[0 ..< hr.spl])
+    echo hr.h[0 ..< hr.b]
+    d.add(hr.h[0 ..< hr.b])
   else:
     result = -1
 
@@ -205,7 +205,7 @@ proc litdecode(
     h.addFirst(Header(
       # todo: this makes 2 copies, fix
       h: d.s[hsl.n.a .. hsl.v.b],
-      spl: hsl.v.a))
+      b: hsl.v.a))
 
 proc hdecode(s: seq[byte], h: var DynHeaders, d: var DecodedStr): int =
   ## Decode a header.
@@ -245,10 +245,29 @@ when isMainModule:
     ds.add("my-header")
     ds.add("my-value")
     for h in ds:
-      assert ds.s[h.n] == "my-header"
-      assert ds.s[h.v] == "my-value"
+      doAssert ds.s[h.n] == "my-header"
+      doAssert ds.s[h.v] == "my-value"
       inc i
     assert i == 1
+  block:
+    let
+      h = "foo-header"
+      v = "foo-value"
+    var ds = initDecodedStr()
+    ds.add(h)
+    ds.add(v)
+    doAssert ds.s[ds[^1].n] == h
+    doAssert ds.s[ds[^1].v] == v
+    let
+      h2 = "bar-header"
+      v2 = "bar-value"
+    ds.add(h2)
+    ds.add(v2)
+    doAssert ds.s[ds[^1].n] == h2
+    doAssert ds.s[ds[^1].v] == v2
+    echo ds.s[ds[^2].v]
+    doAssert ds.s[ds[^2].n] == h
+    doAssert ds.s[ds[^2].v] == v
 
   block:
     echo "Test Encoding 10 Using a 5-Bit Prefix"
@@ -438,5 +457,5 @@ when isMainModule:
       inc i
     doAssert i == 1
     doAssert h.len == 1
-    echo h[0]
-    # todo: check header in h
+    doAssert h[0].h[0 ..< h[0].b] == "custom-key"
+    doAssert h[0].h[h[0].b ..< h[0].h.len] == "custom-header"
