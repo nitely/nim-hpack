@@ -55,10 +55,19 @@ type
 proc initDecodedStr*(): DecodedStr =
   DecodedStr(s: "", b: @[])
 
-proc `[]`(d: DecodedStr, i: BackwardsIndex): DecodedSlice =
+proc `[]`(d: DecodedStr, i: int): DecodedSlice {.inline.} =
   assert i.int <= d.b.len div 2
   assert d.b.len mod 2 == 0
-  let ix = 2*i.int
+  let ix = i.int*2
+  result.n.a = if ix == 0: 0 else: d.b[ix-1]
+  result.n.b = d.b[ix]-1
+  result.v.a = d.b[ix]
+  result.v.b = d.b[ix+1]-1
+
+proc `[]`(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
+  assert i.int <= d.b.len div 2
+  assert d.b.len mod 2 == 0
+  let ix = i.int*2
   result.n.a = if ix == d.b.len: 0 else: d.b[^(ix+1)]
   result.n.b = d.b[^ix]-1
   result.v.a = d.b[^ix]
@@ -89,15 +98,10 @@ iterator items(d: DecodedStr): DecodedSlice {.inline.} =
   ##
   assert d.b.len mod 2 == 0
   var i, j = 0
-  #while k < d.b.len:
-  #  yield (n: i ..< d.b[k], v: d.b[k] ..< d.b[k+1])
-  #  i = d.b[k+1]
-  #  inc(k, 2)
-  for k, b in d.b:
-    if k mod 2 != 0:
-      yield (n: j ..< i, v: i ..< b)
-    j = i
-    i = b
+  while j < d.b.len:
+    yield d[i]
+    inc i
+    inc(j, 2)
 
 proc strdecode(s: openArray[byte], d: var DecodedStr): int =
   ## Decode a literal string.
