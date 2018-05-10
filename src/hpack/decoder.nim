@@ -40,6 +40,7 @@ proc intdecode*(s: openArray[byte], n: int, d: var int): int =
   if cb shr 7 == 1:
     result = -1
 
+# todo: add neverIndex flag?
 type
   DecodedStr* = object
     ## A decoded string contains
@@ -55,7 +56,7 @@ type
 proc initDecodedStr*(): DecodedStr =
   DecodedStr(s: "", b: @[])
 
-proc `[]`(d: DecodedStr, i: int): DecodedSlice {.inline.} =
+proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
   assert i.int <= d.b.len div 2
   assert d.b.len mod 2 == 0
   let ix = i.int*2
@@ -64,7 +65,7 @@ proc `[]`(d: DecodedStr, i: int): DecodedSlice {.inline.} =
   result.v.a = d.b[ix]
   result.v.b = d.b[ix+1]-1
 
-proc `[]`(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
+proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
   assert i.int <= d.b.len div 2
   assert d.b.len mod 2 == 0
   let ix = i.int*2
@@ -140,6 +141,15 @@ type
   DynHeaders = Deque[Header]
     ## Headers dynamic list
 
+proc `$`[T: Header](d: Deque[T]): string {.inline.} =
+  ## Use it for debugging purposes only
+  result = ""
+  for h in d:
+    result.add(h.h[0 ..< h.b])
+    result.add(": ")
+    result.add(h.h[h.b ..< h.h.len])
+    result.add("\r\L")
+
 proc hname(h: DynHeaders, d: var DecodedStr, i: int): int =
   assert i > 0
   result = 0
@@ -169,7 +179,7 @@ proc header(h: DynHeaders, d: var DecodedStr, i: int): int =
     result = -1
 
 proc litdecode(
-    s: seq[byte],
+    s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr,
     np: int,
@@ -193,13 +203,13 @@ proc litdecode(
       return
   else:
     # todo: check 1 < len(s)
-    let nh = strdecode(toOpenArray(s, result, len(s)-1), d)
+    let nh = strdecode(toOpenArray(s, result, s.len-1), d)
     if nh == -1:
       result = -1
       return
     inc(result, nh)
   # todo: check 1+nh < len(s) and does not overflow
-  let nv = strdecode(toOpenArray(s, result, len(s)-1), d)
+  let nv = strdecode(toOpenArray(s, result, s.len-1), d)
   if nv == -1:
     result = -1
     return
@@ -209,9 +219,9 @@ proc litdecode(
     h.addFirst(Header(
       # todo: this makes 2 copies, fix
       h: d.s[hsl.n.a .. hsl.v.b],
-      b: hsl.v.a))
+      b: hsl.n.b - hsl.n.a + 1))
 
-proc hdecode(s: seq[byte], h: var DynHeaders, d: var DecodedStr): int =
+proc hdecode(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
   ## Decode a header.
   ## Return number of consmed
   ## octets, or -1 on error
@@ -444,6 +454,7 @@ when isMainModule:
       result.add(byte(b shr 8))
       result.add(byte(b and 0xff))
 
+  echo "Test examples verbatim"
   block:
     echo "Test Literal Header Field with Indexing"
     var
@@ -452,14 +463,89 @@ when isMainModule:
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
       d = initDecodedStr()
-      h = initDeque[Header](32)
-    doAssert(hdecode(ic, h, d) == ic.len)
+      dh = initDeque[Header](32)
+    doAssert(hdecode(ic, dh, d) == ic.len)
     var i = 0
     for h in d:
       doAssert(d.s[h.n] == "custom-key")
       doAssert(d.s[h.v] == "custom-header")
       inc i
     doAssert i == 1
-    doAssert h.len == 1
-    doAssert h[0].h[0 ..< h[0].b] == "custom-key"
-    doAssert h[0].h[h[0].b ..< h[0].h.len] == "custom-header"
+    doAssert dh.len == 1
+    doAssert($dh == "custom-key: custom-header\r\L")
+  block:
+    echo "Test Literal Header Field without Indexing"
+    var
+      ic = @[
+        0x040c'u16, 0x2f73, 0x616d,
+        0x706c, 0x652f, 0x7061, 0x7468].toBytes
+      d = initDecodedStr()
+      dh = initDeque[Header](32)
+    doAssert(hdecode(ic, dh, d) == ic.len)
+    var i = 0
+    for h in d:
+      doAssert(d.s[h.n] == ":path")
+      doAssert(d.s[h.v] == "/sample/path")
+      inc i
+    doAssert i == 1
+    doAssert dh.len == 0
+  block:
+    echo "Test Literal Header Field Never Indexed"
+    var
+      ic = @[
+        0x1008'u16, 0x7061, 0x7373, 0x776f,
+        0x7264, 0x0673, 0x6563, 0x7265].toBytes
+    ic.add(byte 0x74'u8)
+    var
+      d = initDecodedStr()
+      dh = initDeque[Header](32)
+    doAssert(hdecode(ic, dh, d) == ic.len)
+    var i = 0
+    for h in d:
+      doAssert(d.s[h.n] == "password")
+      doAssert(d.s[h.v] == "secret")
+      inc i
+    doAssert i == 1
+    doAssert dh.len == 0
+  block:
+    echo "Test Indexed Header Field"
+    var
+      ic = @[byte 0x82'u8]
+      d = initDecodedStr()
+      dh = initDeque[Header](32)
+    doAssert(hdecode(ic, dh, d) == ic.len)
+    var i = 0
+    for h in d:
+      doAssert(d.s[h.n] == ":method")
+      doAssert(d.s[h.v] == "GET")
+      inc i
+    doAssert i == 1
+    doAssert dh.len == 0
+  block:
+    echo "Test First Request"
+    var
+      ic = @[
+        0x8286'u16, 0x8441, 0x0f77, 0x7777,
+        0x2e65, 0x7861, 0x6d70, 0x6c65,
+        0x2e63, 0x6f6d].toBytes
+      d = initDecodedStr()
+      dh = initDeque[Header](32)
+      expected = [
+        [":method", "GET"],
+        [":scheme", "http"],
+        [":path", "/"],
+        [":authority", "www.example.com"]]
+      consumed = 0
+    while consumed < ic.len:
+      let c = hdecode(toOpenArray(ic, consumed, ic.len-1), dh, d)
+      doAssert c != -1
+      inc(consumed, c)
+    doAssert consumed == ic.len
+    var i = 0
+    for h in d:
+      doAssert(d.s[h.n] == expected[i][0])
+      doAssert(d.s[h.v] == expected[i][1])
+      inc i
+    doAssert i == expected.len
+    doAssert dh.len == 1
+    doAssert $dh == ":authority: www.example.com\r\L"
