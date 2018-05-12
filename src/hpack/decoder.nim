@@ -163,7 +163,7 @@ proc len*(dh: DynHeaders): int {.inline.} =
 
 proc pop*(dh: var DynHeaders): Header {.inline.} =
   result = dh.d.popLast()
-  dec(dh.filled, result.len)
+  dec(dh.filled, result.len+32)
   assert dh.filled >= 0
 
 proc add*(dh: var DynHeaders, h: Header) {.inline.} =
@@ -712,7 +712,7 @@ when isMainModule:
 
     block:
       echo "Test Response Examples without Huffman Coding"
-      var dh = initDynHeaders(255)
+      var dh = initDynHeaders(256)
       block:
         echo "Test First Response"
         var
@@ -769,3 +769,137 @@ when isMainModule:
           "location: https://www.example.com\r\L" &
           "date: Mon, 21 Oct 2013 20:13:21 GMT\r\L" &
           "cache-control: private\r\L")
+      block:
+        echo "Test Third Response"
+        var
+          ic = @[
+            0x88c1'u16, 0x611d, 0x4d6f, 0x6e2c,
+            0x2032, 0x3120, 0x4f63, 0x7420,
+            0x3230, 0x3133, 0x2032, 0x303a,
+            0x3133, 0x3a32, 0x3220, 0x474d,
+            0x54c0, 0x5a04, 0x677a, 0x6970,
+            0x7738, 0x666f, 0x6f3d, 0x4153,
+            0x444a, 0x4b48, 0x514b, 0x425a,
+            0x584f, 0x5157, 0x454f, 0x5049,
+            0x5541, 0x5851, 0x5745, 0x4f49,
+            0x553b, 0x206d, 0x6178, 0x2d61,
+            0x6765, 0x3d33, 0x3630, 0x303b,
+            0x2076, 0x6572, 0x7369, 0x6f6e,
+            0x3d31].toBytes
+          d = initDecodedStr()
+          expected = [
+            [":status", "200"],
+            ["cache-control", "private"],
+            ["date", "Mon, 21 Oct 2013 20:13:22 GMT"],
+            ["location", "https://www.example.com"],
+            ["content-encoding", "gzip"],
+            ["set-cookie",
+             "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
+        doAssert hdecodeAll(ic, dh, d) == ic.len
+        var i = 0
+        for h in d:
+          doAssert(d.s[h.n] == expected[i][0])
+          doAssert(d.s[h.v] == expected[i][1])
+          inc i
+        doAssert i == expected.len
+        doAssert dh.len == 3
+        doAssert($dh ==
+          "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
+          "max-age=3600; version=1\r\L" &
+          "content-encoding: gzip\r\L" &
+          "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L")
+
+    block:
+      echo "Test Response Examples with Huffman Coding"
+      var dh = initDynHeaders(256)
+      block:
+        echo "Test First Response"
+        var
+          ic = @[
+            0x4882'u16, 0x6402, 0x5885, 0xaec3,
+            0x771a, 0x4b61, 0x96d0, 0x7abe,
+            0x9410, 0x54d4, 0x44a8, 0x2005,
+            0x9504, 0x0b81, 0x66e0, 0x82a6,
+            0x2d1b, 0xff6e, 0x919d, 0x29ad,
+            0x1718, 0x63c7, 0x8f0b, 0x97c8,
+            0xe9ae, 0x82ae, 0x43d3].toBytes
+          d = initDecodedStr()
+          expected = [
+            [":status", "302"],
+            ["cache-control", "private"],
+            ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
+            ["location", "https://www.example.com"]]
+        doAssert hdecodeAll(ic, dh, d) == ic.len
+        var i = 0
+        for h in d:
+          doAssert(d.s[h.n] == expected[i][0])
+          doAssert(d.s[h.v] == expected[i][1])
+          inc i
+        doAssert i == expected.len
+        doAssert dh.len == 4
+        doAssert($dh ==
+          "location: https://www.example.com\r\L" &
+          "date: Mon, 21 Oct 2013 20:13:21 GMT\r\L" &
+          "cache-control: private\r\L" &
+          ":status: 302\r\L")
+      block:
+        echo "Test Second Response"
+        var
+          ic = @[
+            0x4883'u16, 0x640e, 0xffc1, 0xc0bf].toBytes
+          d = initDecodedStr()
+          expected = [
+            [":status", "307"],
+            ["cache-control", "private"],
+            ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
+            ["location", "https://www.example.com"]]
+        doAssert hdecodeAll(ic, dh, d) == ic.len
+        var i = 0
+        for h in d:
+          doAssert(d.s[h.n] == expected[i][0])
+          doAssert(d.s[h.v] == expected[i][1])
+          inc i
+        doAssert i == expected.len
+        doAssert dh.len == 4
+        doAssert($dh ==
+          ":status: 307\r\L" &
+          "location: https://www.example.com\r\L" &
+          "date: Mon, 21 Oct 2013 20:13:21 GMT\r\L" &
+          "cache-control: private\r\L")
+      block:
+        echo "Test Third Response"
+        var ic = @[
+          0x88c1'u16, 0x6196, 0xd07a, 0xbe94,
+          0x1054, 0xd444, 0xa820, 0x0595,
+          0x040b, 0x8166, 0xe084, 0xa62d,
+          0x1bff, 0xc05a, 0x839b, 0xd9ab,
+          0x77ad, 0x94e7, 0x821d, 0xd7f2,
+          0xe6c7, 0xb335, 0xdfdf, 0xcd5b,
+          0x3960, 0xd5af, 0x2708, 0x7f36,
+          0x72c1, 0xab27, 0x0fb5, 0x291f,
+          0x9587, 0x3160, 0x65c0, 0x03ed,
+          0x4ee5, 0xb106, 0x3d50].toBytes
+        ic.add(byte 0x07'u8)
+        var
+          d = initDecodedStr()
+          expected = [
+            [":status", "200"],
+            ["cache-control", "private"],
+            ["date", "Mon, 21 Oct 2013 20:13:22 GMT"],
+            ["location", "https://www.example.com"],
+            ["content-encoding", "gzip"],
+            ["set-cookie",
+             "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
+        doAssert hdecodeAll(ic, dh, d) == ic.len
+        var i = 0
+        for h in d:
+          doAssert(d.s[h.n] == expected[i][0])
+          doAssert(d.s[h.v] == expected[i][1])
+          inc i
+        doAssert i == expected.len
+        doAssert dh.len == 3
+        doAssert($dh ==
+          "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
+          "max-age=3600; version=1\r\L" &
+          "content-encoding: gzip\r\L" &
+          "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L")
