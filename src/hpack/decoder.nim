@@ -173,7 +173,7 @@ proc add*(dh: var DynHeaders, h: Header) {.inline.} =
   if h.len > dh.cap-32:
     raiseDecodeError("header too long")
   dh.d.addFirst(h)
-  dh.filled = dh.filled + h.len + 32
+  inc(dh.filled, h.len+32)
   assert dh.filled <= dh.cap
 
 iterator items*(dh: DynHeaders): Header {.inline.} =
