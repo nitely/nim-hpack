@@ -5,6 +5,10 @@ Based on [rfc7541](https://tools.ietf.org/html/rfc7541).
 
 > WIP!
 
+## Compatibility
+
+> nim >= 0.19 (devel)
+
 ## Tests
 
 ```

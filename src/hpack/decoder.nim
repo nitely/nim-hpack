@@ -1,6 +1,4 @@
-## WIP, highly un-optimized decoder
-
-import deques
+## WIP
 
 import huffman_decoder
 import headers_data
@@ -130,63 +128,120 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
     d.b.add(d.s.len)
 
 type
-  Header = object
-    h: string
-    b: int
+  HBounds = object
+    ## Name and value boundaries
+    n, v: Slice[int]
 
-proc len(h: Header): int {.inline.} =
-  h.h.len
+proc initHBounds(n, v: Slice[int]): HBounds =
+  HBounds(n: n, v: v)
 
 type
-  DynHeaders = object
-    ## Headers dynamic list
-    d: Deque[Header]
-    cap: int
-    filled: int
+  DynHeaders* = object
+    ## A circular queue.
+    ## This is an implementaion of the
+    ## dynamic header table. It has both
+    ## total length of headers and
+    ## number of headers limits.
+    ## It can be efficiently reused
+    s: string
+    pos, filled: int
+    b: seq[HBounds]
+    head, tail, length: int
 
-proc initDynHeaders*(cap: Natural): DynHeaders {.inline.} =
-  ## Initialize ``DynHeaders``. The ``cap``
-  ## is the capacity of the queue in octets.
-  ## There is no way to set the number of
-  ## headers it can hold.
-  assert cap > 32
+proc initDynHeaders*(strsize, qsize: int): DynHeaders {.inline.} =
+  #assert size.isPowerOfTwo
   DynHeaders(
-    d: initDeque[Header](32),
-    cap: cap,
-    filled: 0)
+    s: newString(strsize),
+    pos: 0,
+    filled: 0,
+    b: newSeq[HBounds](qsize),
+    head: qsize-1,
+    tail: 0,
+    length: 0)
 
-proc `[]`*(dh: DynHeaders, i: int): Header {.inline.} =
-  dh.d[i]
+proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
+  let i = (q.head-i) and (q.b.len-1)
+  assert i < q.length, "out of bounds"
+  q.b[i]
 
-proc len*(dh: DynHeaders): int {.inline.} =
-  dh.d.len
+template a(hb: HBounds): int =
+  hb.n.a
 
-proc pop*(dh: var DynHeaders): Header {.inline.} =
-  result = dh.d.popLast()
-  dec(dh.filled, result.len+32)
-  assert dh.filled >= 0
+template b(hb: HBounds): int =
+  hb.v.b
 
-proc add*(dh: var DynHeaders, h: Header) {.inline.} =
-  assert dh.filled <= dh.cap
-  while dh.len > 0 and h.len > dh.cap-dh.filled-32:
-    discard dh.pop()
-  if h.len > dh.cap-32:
-    raiseDecodeError("header too long")
-  dh.d.addFirst(h)
-  inc(dh.filled, h.len+32)
-  assert dh.filled <= dh.cap
+proc reset*(q: var DynHeaders) {.inline.} =
+  q.head = q.b.len-1
+  q.pos = 0
+  q.filled = 0
+  q.tail = 0
+  q.length = 0
 
-iterator items*(dh: DynHeaders): Header {.inline.} =
-  for h in dh.d:
-    yield h
+proc len*(q: DynHeaders): int {.inline.} =
+  q.length
+
+proc left*(q: DynHeaders): int {.inline.} =
+  ## Return available space
+  assert q.filled <= q.s.len
+  q.s.len-q.filled
+
+proc pop*(q: var DynHeaders): HBounds {.inline.} =
+  assert q.len > 0, "empty queue"
+  result = q.b[q.tail]
+  q.tail = (q.tail+1) and (q.b.len-1)
+  dec q.length
+  dec(q.filled, result.b-result.a+1+32)  #+1???
+  assert q.filled >= 0
+
+proc add*(q: var DynHeaders, x: openArray[char], b: int) {.inline.} =
+  assert b < x.len
+  while q.len > 0 and x.len > q.left-32:
+    discard q.pop()
+  if x.len > q.s.len-32:
+    raise newException(ValueError, "string too long")
+  q.head = (q.head+1) and (q.b.len-1)
+  q.b[q.head] = HBounds(
+    n: q.pos ..< q.pos+b,
+    v: q.pos+b .. q.pos+x.len-1)
+  q.length = min(q.b.len, q.length+1)
+  for c in x:
+    q.s[q.pos] = c
+    q.pos = (q.pos+1) and (q.s.len-1)
+  inc(q.filled, x.len+32)
+  assert q.filled <= q.s.len
+
+iterator items*(q: DynHeaders): HBounds {.inline.} =
+  ## Yield headers in FIFO order
+  var i = 0
+  while i < q.len:
+    yield q.b[(q.head-i) and (q.b.len-1)]
+    inc i
+
+proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
+  assert hb.b >= hb.a
+  let o = s.len
+  s.setLen(s.len+hb.b-hb.a+1)
+  for i in hb.a .. hb.b:
+    s[o+i-hb.a] = q.s[i and (q.s.len-1)]
+
+proc addIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
+  let hb = dh[i]
+  dh.substr(d.s, hb)
+  d.b.add(d.s.len-(hb.v.b-hb.v.a+1))
+  d.b.add(d.s.len)
+
+proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
+  let hb = dh[i]
+  dh.substr(d.s, initHBounds(hb.n, hb.n))
+  d.b.add(d.s.len)
 
 proc `$`(dh: DynHeaders): string {.inline.} =
   ## Use it for debugging purposes only
   result = ""
-  for h in dh:
-    result.add(h.h[0 ..< h.b])
+  for hb in dh:
+    dh.substr(result, initHBounds(hb.n, hb.n))
     result.add(": ")
-    result.add(h.h[h.b ..< h.h.len])
+    dh.substr(result, initHBounds(hb.v, hb.v))
     result.add("\r\L")
 
 proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
@@ -199,8 +254,7 @@ proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
     # todo: fixme?
     #d.add("")
   elif idyn < h.len:
-    # todo: fixme, no extra copy
-    d.add(h[idyn].h[0 ..< h[idyn].b])
+    h.addNameIn(d, idyn)
     # todo: fixme?
     #d.add("")
   else:
@@ -215,9 +269,7 @@ proc header(h: DynHeaders, d: var DecodedStr, i: int) =
     d.add(headersTable[i][0])
     d.add(headersTable[i][1])
   elif idyn < h.len:
-    # todo: fixme, no extra copy
-    d.add(h[idyn].h[0 ..< h[idyn].b])
-    d.add(h[idyn].h[h[idyn].b ..< h[idyn].h.len])
+    h.addIn(d, idyn)
   else:
     raiseDecodeError("dyn header not found")
 
@@ -246,10 +298,9 @@ proc litdecode(
   inc(result, nv)
   when store:
     let hsl = d[^1]
-    h.add(Header(
-      # todo: this makes 2 copies, fix
-      h: d.s[hsl.n.a .. hsl.v.b],
-      b: hsl.n.b - hsl.n.a + 1))
+    h.add(
+      toOpenArray(d.s, hsl.n.a, hsl.v.b),
+      hsl.n.b-hsl.n.a+1)
 
 proc hdecode(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
   ## Decode a header.
@@ -276,6 +327,28 @@ proc hdecode(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
   raiseDecodeError("unknown octet prefix")
 
 when isMainModule:
+  block:
+    echo "Test DynHeaders"
+    var dh = initDynHeaders(256, 16)
+    dh.add("cache-controlprivate", "cache-control".len)
+    dh.add("dateMon, 21 Oct 2013 20:13:21 GMT", "date".len)
+    dh.add("locationhttps://www.example.com", "location".len)
+    dh.add(":status307", ":status".len)
+    doAssert($dh ==
+      ":status: 307\r\L" &
+      "location: https://www.example.com\r\L" &
+      "date: Mon, 21 Oct 2013 20:13:21 GMT\r\L" &
+      "cache-control: private\r\L")
+    dh.add("dateMon, 21 Oct 2013 20:13:22 GMT", "date".len)
+    dh.add("content-encodinggzip", "content-encoding".len)
+    dh.add("set-cookiefoo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
+      "max-age=3600; version=1", "set-cookie".len)
+    doAssert($dh ==
+      "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
+      "max-age=3600; version=1\r\L" &
+      "content-encoding: gzip\r\L" &
+      "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L")
+
   block:
     echo "Test decodedStr"
     var
@@ -490,7 +563,7 @@ when isMainModule:
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
       d = initDecodedStr()
-      dh = initDynHeaders(255)
+      dh = initDynHeaders(256, 16)
     doAssert(hdecode(ic, dh, d) == ic.len)
     var i = 0
     for h in d:
@@ -507,7 +580,7 @@ when isMainModule:
         0x040c'u16, 0x2f73, 0x616d,
         0x706c, 0x652f, 0x7061, 0x7468].toBytes
       d = initDecodedStr()
-      dh = initDynHeaders(255)
+      dh = initDynHeaders(256, 16)
     doAssert(hdecode(ic, dh, d) == ic.len)
     var i = 0
     for h in d:
@@ -524,7 +597,7 @@ when isMainModule:
     ic.add(byte 0x74'u8)
     var
       d = initDecodedStr()
-      dh = initDynHeaders(255)
+      dh = initDynHeaders(256, 16)
     doAssert(hdecode(ic, dh, d) == ic.len)
     var i = 0
     for h in d:
@@ -538,7 +611,7 @@ when isMainModule:
     var
       ic = @[byte 0x82'u8]
       d = initDecodedStr()
-      dh = initDynHeaders(255)
+      dh = initDynHeaders(256, 16)
     doAssert(hdecode(ic, dh, d) == ic.len)
     var i = 0
     for h in d:
@@ -558,7 +631,7 @@ when isMainModule:
 
   block:
     echo "Test Request Examples without Huffman Coding"
-    var dh = initDynHeaders(255)
+    var dh = initDynHeaders(256, 16)
     block:
       echo "Test First Request"
       var
@@ -636,7 +709,7 @@ when isMainModule:
 
   block:
     echo "Test Request Examples with Huffman Coding"
-    var dh = initDynHeaders(256)
+    var dh = initDynHeaders(256, 16)
     block:
       echo "Test First Request"
       var ic = @[
@@ -712,7 +785,7 @@ when isMainModule:
 
     block:
       echo "Test Response Examples without Huffman Coding"
-      var dh = initDynHeaders(256)
+      var dh = initDynHeaders(256, 16)
       block:
         echo "Test First Response"
         var
@@ -811,7 +884,7 @@ when isMainModule:
 
     block:
       echo "Test Response Examples with Huffman Coding"
-      var dh = initDynHeaders(256)
+      var dh = initDynHeaders(256, 16)
       block:
         echo "Test First Response"
         var
