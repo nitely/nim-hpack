@@ -251,12 +251,8 @@ proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
     idyn = i-headersTable.len
   if i < len(headersTable):
     d.add(headersTable[i][0])
-    # todo: fixme?
-    #d.add("")
   elif idyn < h.len:
     h.addNameIn(d, idyn)
-    # todo: fixme?
-    #d.add("")
   else:
     raiseDecodeError("dyn header name not found")
 
@@ -284,17 +280,22 @@ proc litdecode(
   ## without indexing, or
   ## never indexed.
   ## Return number of consumed octets
-  result = 0
   var dint = 0
-  inc(result, intdecode(s, np, dint))
+  result = intdecode(s, np, dint)
   if dint > 0:
     hname(h, d, dint)
   else:
-    # todo: check 1 < len(s)
+    if result > s.len-1:
+      raiseDecodeError("out of bounds")
     let nh = strdecode(toOpenArray(s, result, s.len-1), d)
+    if result > int.high-nh:
+      raiseDecodeError("overflow")
     inc(result, nh)
-  # todo: check 1+nh < len(s) and does not overflow
+  if result > s.len-1:
+    raiseDecodeError("out of bounds")
   let nv = strdecode(toOpenArray(s, result, s.len-1), d)
+  if result > int.high-nv:
+    raiseDecodeError("overflow")
   inc(result, nv)
   when store:
     let hsl = d[^1]
