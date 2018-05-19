@@ -1,5 +1,7 @@
 ## HPACK decoder
 
+from math import isPowerOfTwo
+
 import huffman_decoder
 import headers_data
 
@@ -161,7 +163,8 @@ type
     head, tail, length: int
 
 proc initDynHeaders*(strsize, qsize: int): DynHeaders {.inline.} =
-  #assert size.isPowerOfTwo
+  assert strsize.isPowerOfTwo
+  assert qsize.isPowerOfTwo
   DynHeaders(
     s: newString(strsize),
     pos: 0,
@@ -315,7 +318,7 @@ proc litdecode(
       toOpenArray(d.s, hsl.n.a, hsl.v.b),
       hsl.n.b-hsl.n.a+1)
 
-proc hdecode(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
+proc hdecode*(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
   ## Decode a header.
   ## Return number of consmed octets
   assert len(s) > 0
@@ -338,6 +341,14 @@ proc hdecode(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
     result = litdecode(s, h, d, 4, false)
     return
   raiseDecodeError("unknown octet prefix")
+
+proc hdecodeAll*(
+    s: openArray[byte],
+    h: var DynHeaders,
+    d: var DecodedStr): int =
+  result = 0
+  while result < s.len:
+    inc(result, hdecode(toOpenArray(s, result, s.len-1), h, d))
 
 when isMainModule:
   block:
@@ -633,14 +644,6 @@ when isMainModule:
       inc i
     doAssert i == 1
     doAssert dh.len == 0
-
-  proc hdecodeAll(
-      s: openArray[byte],
-      h: var DynHeaders,
-      d: var DecodedStr): int =
-    result = 0
-    while result < s.len:
-      inc(result, hdecode(toOpenArray(s, result, s.len-1), h, d))
 
   block:
     echo "Test Request Examples without Huffman Coding"
