@@ -1,4 +1,4 @@
-## WIP
+## HPACK decoder
 
 import huffman_decoder
 import headers_data
@@ -9,7 +9,7 @@ type
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)
 
-proc intdecode*(s: openArray[byte], n: int, d: var int): int =
+proc intdecode(s: openArray[byte], n: int, d: var int): int =
   ## Return number of consumed octets.
   ## ``n`` param is the N-bit prefix.
   ## Decoded int is assigned to ``d``
@@ -43,23 +43,29 @@ proc intdecode*(s: openArray[byte], n: int, d: var int): int =
 
 # todo: add neverIndex flag?
 type
+  DecodedSlice* = object
+    ## A decoded string slice.
+    ## It has the boundaries of
+    ## header name and value
+    n*: Slice[int]
+    v*: Slice[int]
   DecodedStr* = object
     ## A decoded string contains
     ## a string of all header/value
-    ## joined together and a
+    ## put together and a
     ## sequence of their boundaries
     s*: string
     b*: seq[int]
-  DecodedSlice* = tuple
-    n: Slice[int]
-    v: Slice[int]
 
-proc initDecodedStr*(): DecodedStr =
+proc initDecodedStr*(): DecodedStr {.inline.} =
   DecodedStr(s: "", b: @[])
 
-proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
-  assert i.int <= d.b.len div 2
+proc len(d: DecodedStr): int =
   assert d.b.len mod 2 == 0
+  d.b.len div 2
+
+proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
+  assert i.int < d.len, "out of bounds"
   let ix = i.int*2
   result.n.a = if ix == 0: 0 else: d.b[ix-1]
   result.n.b = d.b[ix]-1
@@ -67,8 +73,7 @@ proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
   result.v.b = d.b[ix+1]-1
 
 proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
-  assert i.int <= d.b.len div 2
-  assert d.b.len mod 2 == 0
+  assert i.int <= d.len, "out of bounds"
   let ix = i.int*2
   result.n.a = if ix == d.b.len: 0 else: d.b[^(ix+1)]
   result.n.b = d.b[^ix]-1
@@ -80,6 +85,13 @@ proc reset*(d: var DecodedStr) =
   d.b.setLen(0)
 
 proc add*(d: var DecodedStr, s: string) =
+  ## Add either a header name or a value.
+  ##
+  ## .. code-block:: nim
+  ##   var ds = initDecodedStr()
+  ##   ds.add("my-header")
+  ##   ds.add("my-value")
+  ##
   d.s.add(s)
   d.b.add(d.s.len)
 
@@ -159,10 +171,12 @@ proc initDynHeaders*(strsize, qsize: int): DynHeaders {.inline.} =
     tail: 0,
     length: 0)
 
+proc len*(q: DynHeaders): int {.inline.} =
+  q.length
+
 proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
-  let i = (q.head-i) and (q.b.len-1)
-  assert i < q.length, "out of bounds"
-  q.b[i]
+  assert i < q.len, "out of bounds"
+  q.b[(q.tail+q.len-1-i) and (q.b.len-1)]
 
 template a(hb: HBounds): int =
   hb.n.a
@@ -176,9 +190,6 @@ proc reset*(q: var DynHeaders) {.inline.} =
   q.filled = 0
   q.tail = 0
   q.length = 0
-
-proc len*(q: DynHeaders): int {.inline.} =
-  q.length
 
 proc left*(q: DynHeaders): int {.inline.} =
   ## Return available space
@@ -213,8 +224,9 @@ proc add*(q: var DynHeaders, x: openArray[char], b: int) {.inline.} =
 iterator items*(q: DynHeaders): HBounds {.inline.} =
   ## Yield headers in FIFO order
   var i = 0
+  let head = q.tail+q.len-1
   while i < q.len:
-    yield q.b[(q.head-i) and (q.b.len-1)]
+    yield q.b[(head-i) and (q.b.len-1)]
     inc i
 
 proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =

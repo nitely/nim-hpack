@@ -1,12 +1,12 @@
 import unittest
 
+import hpack/huffman_decoder
 import hpack
 
 proc toBytes(s: seq[uint16]): seq[byte] =
   result = newSeqOfCap[byte](len(s) * 2)
   for b in s:
-    if b shr 8 > 0'u16:
-      result.add(byte(b shr 8))
+    result.add(byte(b shr 8))
     result.add(byte(b and 0xff))
 
 test "Test HC decode example.com":
@@ -33,7 +33,8 @@ test "Test HC decode custom":
     check hcdecode(msg, d) != -1
     check d == "custom-key"
   block:
-    let msg = @[0x25a8'u16, 0x49e9, 0x5bb8, 0xe8b4, 0xbf].toBytes
+    var msg = @[0x25a8'u16, 0x49e9, 0x5bb8, 0xe8b4].toBytes
+    msg.add(byte 0xbf'u8)
     var d = ""
     check hcdecode(msg, d) != -1
     check d == "custom-value"

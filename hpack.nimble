@@ -7,7 +7,7 @@ license = "MIT"
 srcDir = "src"
 skipDirs = @["tests"]
 
-requires "nim >= 0.18.0"
+requires "nim >= 0.18.1"
 
 task gen, "Gen data":
   exec "nim c -r gen/huffman.nim"
@@ -15,7 +15,7 @@ task gen, "Gen data":
 task test, "Test":
   exec "nim c -r src/hpack/decoder.nim"
   exec "nim c -r src/hpack/huffman_decoder.nim"
-  #exec "nim c -r tests/tests.nim"
+  exec "nim c -r tests/tests.nim"
 
 task docs, "Docs":
   exec "nim doc2 -o:./docs/index.html ./src/hpack.nim"
