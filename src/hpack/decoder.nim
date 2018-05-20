@@ -135,6 +135,7 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
       raiseDecodeError("huffman error")
     d.b.add(d.s.len)
   else:
+    # todo: memcopy
     let j = d.s.len
     d.s.setLen(d.s.len + result-n)
     for i in 0 ..< result-n:
@@ -162,8 +163,16 @@ type
     b: seq[HBounds]
     head, tail, length: int
 
-proc initDynHeaders*(strsize, qsize: int): DynHeaders {.inline.} =
-  assert strsize.isPowerOfTwo
+proc initDynHeaders*(strsize, qsize: Natural): DynHeaders {.inline.} =
+  ## Initialize a dynamic headers table.
+  ## ``strsize`` is the max size in bytes
+  ## of all headers put together.
+  ## It must be greater than 32,
+  ## since each header has 32 bytes
+  ## of overhead according to spec.
+  ## Both string size and queue size
+  ## must be a power of two.
+  assert strsize > 32 and strsize.isPowerOfTwo
   assert qsize.isPowerOfTwo
   DynHeaders(
     s: newString(strsize),
@@ -177,7 +186,14 @@ proc initDynHeaders*(strsize, qsize: int): DynHeaders {.inline.} =
 proc len*(q: DynHeaders): int {.inline.} =
   q.length
 
-proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
+proc reset*(q: var DynHeaders) {.inline.} =
+  q.head = q.b.len-1
+  q.pos = 0
+  q.filled = 0
+  q.tail = 0
+  q.length = 0
+
+proc `[]`(q: DynHeaders, i: Natural): HBounds {.inline.} =
   assert i < q.len, "out of bounds"
   q.b[(q.tail+q.len-1-i) and (q.b.len-1)]
 
@@ -187,27 +203,20 @@ template a(hb: HBounds): int =
 template b(hb: HBounds): int =
   hb.v.b
 
-proc reset*(q: var DynHeaders) {.inline.} =
-  q.head = q.b.len-1
-  q.pos = 0
-  q.filled = 0
-  q.tail = 0
-  q.length = 0
-
-proc left*(q: DynHeaders): int {.inline.} =
+proc left(q: DynHeaders): int {.inline.} =
   ## Return available space
   assert q.filled <= q.s.len
   q.s.len-q.filled
 
-proc pop*(q: var DynHeaders): HBounds {.inline.} =
+proc pop(q: var DynHeaders): HBounds {.inline.} =
   assert q.len > 0, "empty queue"
   result = q.b[q.tail]
   q.tail = (q.tail+1) and (q.b.len-1)
   dec q.length
-  dec(q.filled, result.b-result.a+1+32)  #+1???
+  dec(q.filled, result.b-result.a+1+32)
   assert q.filled >= 0
 
-proc add*(q: var DynHeaders, x: openArray[char], b: int) {.inline.} =
+proc add(q: var DynHeaders, x: openArray[char], b: int) {.inline.} =
   assert b < x.len
   while q.len > 0 and x.len > q.left-32:
     discard q.pop()
@@ -224,7 +233,7 @@ proc add*(q: var DynHeaders, x: openArray[char], b: int) {.inline.} =
   inc(q.filled, x.len+32)
   assert q.filled <= q.s.len
 
-iterator items*(q: DynHeaders): HBounds {.inline.} =
+iterator items(q: DynHeaders): HBounds {.inline.} =
   ## Yield headers in FIFO order
   var i = 0
   let head = q.tail+q.len-1
@@ -232,7 +241,7 @@ iterator items*(q: DynHeaders): HBounds {.inline.} =
     yield q.b[(head-i) and (q.b.len-1)]
     inc i
 
-proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
+proc substr(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
   assert hb.b >= hb.a
   let o = s.len
   s.setLen(s.len+hb.b-hb.a+1)
@@ -372,6 +381,36 @@ when isMainModule:
       "max-age=3600; version=1\r\L" &
       "content-encoding: gzip\r\L" &
       "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L")
+  block:
+    echo "Test DynHeaders filled"
+    var dh = initDynHeaders(256, 16)
+    dh.add("foobar", "foo".len)
+    doAssert dh.filled == "foobar".len+32
+    doAssert dh.pop() == initHBounds(
+      0 ..< "foo".len,
+      "foo".len .. "foobar".len-1)
+    doAssert dh.filled == 0
+  block:
+    var dh = initDynHeaders(256, 16)
+    var s = newString(256-32)
+    for i in 0 .. s.len-1:
+      s[i] = 'a'
+    dh.add(s, 1)
+    doAssert dh.filled == 256
+    discard dh.pop()
+    doAssert dh.filled == 0
+    dh.add(s, 1)
+    dh.add("abc", 1)
+    doAssert dh.filled == "abc".len+32
+  block:
+    var dh = initDynHeaders(256, 16)
+    dh.add("abc", 1)
+    dh.add("abc", 1)
+    doAssert dh.filled == ("abc".len+32)*2
+    discard dh.pop()
+    doAssert dh.filled == "abc".len+32
+    discard dh.pop()
+    doAssert dh.filled == 0
 
   block:
     echo "Test decodedStr"
