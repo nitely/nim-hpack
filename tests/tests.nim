@@ -126,7 +126,7 @@ suite "Request Examples without Huffman Coding":
         [":scheme", "http"],
         [":path", "/"],
         [":authority", "www.example.com"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -148,7 +148,7 @@ suite "Request Examples without Huffman Coding":
         [":path", "/"],
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -175,7 +175,7 @@ suite "Request Examples without Huffman Coding":
         [":path", "/index.html"],
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -203,7 +203,7 @@ suite "Request Examples with Huffman Coding":
         [":scheme", "http"],
         [":path", "/"],
         [":authority", "www.example.com"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -225,7 +225,7 @@ suite "Request Examples with Huffman Coding":
         [":path", "/"],
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -250,7 +250,7 @@ suite "Request Examples with Huffman Coding":
         [":path", "/index.html"],
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -284,7 +284,7 @@ suite "Response Examples without Huffman Coding":
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -308,7 +308,7 @@ suite "Response Examples without Huffman Coding":
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -347,7 +347,7 @@ suite "Response Examples without Huffman Coding":
         ["content-encoding", "gzip"],
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -380,7 +380,7 @@ suite "Response Examples with Huffman Coding":
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -404,7 +404,7 @@ suite "Response Examples with Huffman Coding":
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]
@@ -441,7 +441,7 @@ suite "Response Examples with Huffman Coding":
         ["content-encoding", "gzip"],
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
-    check hdecodeAll(ic, dh, d) == ic.len
+    hdecodeAll(ic, dh, d)
     var i = 0
     for h in d:
       check d.s[h.n] == expected[i][0]

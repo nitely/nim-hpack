@@ -328,8 +328,9 @@ proc litdecode(
       hsl.n.b-hsl.n.a+1)
 
 proc hdecode*(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
-  ## Decode a header.
-  ## Return number of consmed octets
+  ## Decode a single header.
+  ## Return number of consumed octets.
+  ## ``s`` bytes sequence must not be empty.
   assert len(s) > 0
   # indexed
   if s[0] shr 7 == 1:
@@ -354,10 +355,17 @@ proc hdecode*(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
 proc hdecodeAll*(
     s: openArray[byte],
     h: var DynHeaders,
-    d: var DecodedStr): int =
-  result = 0
-  while result < s.len:
-    inc(result, hdecode(toOpenArray(s, result, s.len-1), h, d))
+    d: var DecodedStr) =
+  ## Decode all headers
+  ## from the blob of bytes
+  ## ``s`` and stores it into
+  ## a decoded string``d``.
+  ## The dynamic headers are stored
+  ## into ``h`` to decode the next message.
+  var i = 0
+  while i < s.len:
+    inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d))
+  assert i == s.len
 
 when isMainModule:
   block:
@@ -411,6 +419,21 @@ when isMainModule:
     doAssert dh.filled == "abc".len+32
     discard dh.pop()
     doAssert dh.filled == 0
+  block:
+    echo "Test DynHeaders length"
+    var dh = initDynHeaders(1024, 4)
+    dh.add("foobar", "foo".len)
+    doAssert dh.length == 1
+    discard dh.pop()
+    doAssert dh.length == 0
+    for _ in 0 ..< 4:
+      dh.add("abc", 1)
+    doAssert dh.length == 4
+    dh.add("abc", 1)
+    doAssert dh.length == 4
+    for _ in 0 ..< 4:
+      discard dh.pop()
+    doAssert dh.length == 0
 
   block:
     echo "Test decodedStr"
