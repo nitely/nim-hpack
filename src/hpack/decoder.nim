@@ -356,12 +356,10 @@ proc hdecodeAll*(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr) =
-  ## Decode all headers
-  ## from the blob of bytes
-  ## ``s`` and stores it into
-  ## a decoded string``d``.
-  ## The dynamic headers are stored
-  ## into ``h`` to decode the next message.
+  ## Decode all headers from the blob of bytes
+  ## ``s`` and stores it into a decoded string``d``.
+  ## The dynamic headers are stored into ``h``
+  ## to decode the next message.
   var i = 0
   while i < s.len:
     inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d))

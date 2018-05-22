@@ -539,6 +539,22 @@ proc `$`(t: Table): string =
     rows.add("[\L    $#\L  ]" % join(row, ",\L    "))
   result = "[\L  $#\L]" % join(rows, ",\L  ")
 
+type
+  DecodeTable = seq[array[2, int]]
+
+proc buildDecodeTable(s: seq[string]): DecodeTable =
+  result = newSeq[array[2, int]](256)
+  for i in 0 .. result.len-1:
+    var b = 0
+    assert parseBin(s[i], b) > 0
+    result[i] = [b, s[i].len]
+
+proc `$`(t: DecodeTable): string =
+  result = "[\L"
+  for row in t:
+    result.add("  [$#'u32, $#'u32],\L" % [$row[0], $row[1]])
+  result.add("]")
+
 const hcTemplate = """# auto generated
 
 type
@@ -548,11 +564,14 @@ type
     hcfDone = $#
 
 const hcTable* = $#
+const hcDecTable* = $#
 """
 
 when isMainModule:
-  var table = build(buildTrie(parse(rawHC)))
+  let table = rawHC.parse.buildTrie.build
   echo table.len
+
+  let decTable = rawHC.parse.buildDecodeTable
 
   var f = open("./src/hpack/huffman_data.nim", fmWrite)
   try:
@@ -560,7 +579,8 @@ when isMainModule:
       $flgSym.ord,
       $flgContinue.ord,
       $flgDone.ord,
-      $table])
+      $table,
+      $decTable])
   finally:
     close(f)
 
