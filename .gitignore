@@ -2,6 +2,8 @@ nimcache/
 gen/huffman
 gen/static_table
 src/hpack/huffman_decoder
+src/hpack/huffman_encoder
 src/hpack/decoder
+src/hpack/encoder
 src/hpack/strqueue
 tests/tests
