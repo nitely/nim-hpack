@@ -12,107 +12,83 @@ if I < 2^N - 1, encode I on N bits
        encode I on 8 bits
 ]#
 
-#[
-proc hcencode2(s: string): seq[byte] =
-  let hc = [
-    [0x1ff8, 13],
-    [0x7fffd8, 23],
-    # ...
-  ]
-  result = newSeq[byte](s.len*4)
-  var i = 0
-  for c in s:
-    let code = hc[c.ord]
-    var n = code[0]
-    var len = code[1]
-    len = max(0, code[1]-shf)
-    result[i] += (n shr len) and 0xff
-    inc i
-    n = n and (len shl 1) - 1
-    shf = len and 7
-    if len > 24:
-      result[i] = (n shr 24) and 0xff
-      result[i+1] = (n shr 16) and 0xff
-      result[i+2] = (n shr 8) and 0xff
-      result[i+3] = (n shl shf) and 0xff
-      inc(i, 3)
-    elif len > 16:
-      result[i] = (n shr 16) and 0xff
-      result[i+1] = (n shr 8) and 0xff
-      result[i+2] = (n shl shf) and 0xff
-      inc(i, 2)
-    elif len > 8:
-      result[i] = (n shr 8) and 0xff
-      result[i+1] = (n shl shf) and 0xff
-      inc i
-    elif len > 0:
-      result[i] = n shl shf
-    else:
-      dec i
-    if shf == 0:
-      inc i
-]#
-
-proc hcencode(s: string): seq[byte] =
-  # todo: align + copy one byte at a time?
-  #       but meh, visible char codes are small
-  result = newSeq[byte](s.len*4)
+proc hcencode(s: string, e: var seq[byte]) =
   var
-    i = 0
+    i = e.len
     j = 0
     k = 0'u32
+  e.setLen(e.len+s.len*4)
   for c in s:
-    let code = hcDecTable[c.ord]
-    k = 1'u32 shl (code[1]-1)
+    let
+      code = hcDecTable[c.ord]
+      co = code[0]
+      coLen = code[1]
+    k = 1'u32 shl (coLen-1)
     while k > 0'u32:
-      let b = if (code[0] and k) > 0'u32: 1'u8 else: 0'u8
-      result[i] += b shl (7-j)
+      let b = if (co and k) > 0'u32: 1'u8 else: 0'u8
+      e[i] += b shl (7-j)
       j = (j+1) and 7
       k = k shr 1
       i = if j == 0: i+1 else: i
-  if k == 0'u32 and j == 0:
-    result.setLen(i)
-  else:
-    result.setLen(i+1)
+  # padding
   while j > 0:
-    result[i] += 1'u8 shl (7-j)
+    e[i] += 1'u8 shl (7-j)
     j = (j+1) and 7
+    i = if j == 0: i+1 else: i
+  e.setLen(i)
 
 when isMainModule:
   import huffman_decoder
 
   block:
-    var s = ""
-    doAssert hcdecode(hcencode("a"), s) != -1
+    var
+      e = newSeq[byte]()
+      s = ""
+    hcencode("a", e)
+    doAssert hcdecode(e, s) != -1
     doAssert s == "a"
   block:
-    var s = ""
+    var
+      e = newSeq[byte]()
+      s = ""
     for c in 0'u8.char .. 255'u8.char:
-      doAssert hcdecode(hcencode("" & c), s) != -1
-      doAssert s == "" & c
+      e.setLen(0)
       s.setLen(0)
+      hcencode("" & c, e)
+      doAssert hcdecode(e, s) != -1
+      doAssert s == "" & c
   block:
-    var s = ""
+    var
+      e = newSeq[byte]()
+      s = ""
     for c in 0'u8.char .. 255'u8.char:
       for c2 in 0'u8.char .. 255'u8.char:
-        doAssert hcdecode(hcencode("" & c & c2), s) != -1
-        doAssert s == "" & c & c2
+        e.setLen(0)
         s.setLen(0)
+        hcencode("" & c & c2, e)
+        doAssert hcdecode(e, s) != -1
+        doAssert s == "" & c & c2
   block:
-    var s = ""
-    var res = ""
+    var
+      e = newSeq[byte]()
+      s = ""
+      res = ""
     for c in 0'u8.char .. 255'u8.char:
       s.add(c)
-    doAssert hcdecode(hcencode(s), res) != -1
+    hcencode(s, e)
+    doAssert hcdecode(e, res) != -1
     doAssert s == res
   block:
-    var s = ""
-    var res = ""
+    var
+      e = newSeq[byte]()
+      s = ""
+      res = ""
     for c in 'a' .. 'z':
       s.add(c)
     for c in 'A' .. 'Z':
       s.add(c)
     for c in '0' .. '9':
       s.add(c)
-    doAssert hcdecode(hcencode(s), res) != -1
+    hcencode(s, e)
+    doAssert hcdecode(e, res) != -1
     doAssert s == res
