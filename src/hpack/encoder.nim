@@ -1,94 +1,49 @@
+## HPACK encoder
 
-import huffman_data
+import huffman_encoder
 
-#[
-if I < 2^N - 1, encode I on N bits
-   else
-       encode (2^N - 1) on N bits
-       I = I - (2^N - 1)
-       while I >= 128
-            encode (I % 128 + 128) on 8 bits
-            I = I / 128
-       encode I on 8 bits
-]#
-
-proc hcencode(s: string, e: var seq[byte]) =
-  var
-    i = e.len
-    j = 0
-    k = 0'u32
-  e.setLen(e.len+s.len*4)
-  for c in s:
-    let
-      code = hcDecTable[c.ord]
-      co = code[0]
-      coLen = code[1]
-    k = 1'u32 shl (coLen-1)
-    while k > 0'u32:
-      let b = if (co and k) > 0'u32: 1'u8 else: 0'u8
-      e[i] += b shl (7-j)
-      j = (j+1) and 7
-      k = k shr 1
-      i = if j == 0: i+1 else: i
-  # padding
-  while j > 0:
-    e[i] += 1'u8 shl (7-j)
-    j = (j+1) and 7
-    i = if j == 0: i+1 else: i
-  e.setLen(i)
+proc intencode(x: int, n: int, s: var seq[byte]): int =
+  ## Encode using N-bit prefix.
+  ## Return number of octets.
+  ## First byte's bit 2^N is set for convenience
+  assert n in {1 .. 8}
+  result = 1
+  let np = 1 shl n - 1
+  if x < np:
+    s.add(x.uint8 or (1'u8 shl n))
+    return
+  s.add(np.uint8 or (1'u8 shl n))
+  var x = x - np
+  var i = 0
+  while x >= 1 shl 7:
+    s.add((x and (1 shl 7 - 1)).uint8 or 1'u8 shl 7)
+    x = x shr 7
+    inc result
+  s.add(x.uint8)
+  inc result
 
 when isMainModule:
-  import huffman_decoder
+  import decoder
 
   block:
-    var
-      e = newSeq[byte]()
-      s = ""
-    hcencode("a", e)
-    doAssert hcdecode(e, s) != -1
-    doAssert s == "a"
+    echo "Test Encoding 10 Using a 5-Bit Prefix"
+    var ic = newSeq[byte]()
+    doAssert(intencode(10, 5, ic) == 1)
+    doAssert(ic == @[byte 0b101010])
   block:
-    var
-      e = newSeq[byte]()
-      s = ""
-    for c in 0'u8.char .. 255'u8.char:
-      e.setLen(0)
-      s.setLen(0)
-      hcencode("" & c, e)
-      doAssert hcdecode(e, s) != -1
-      doAssert s == "" & c
+    echo "Test Encoding 1337 Using a 5-Bit Prefix"
+    var ic = newSeq[byte]()
+    doAssert(intencode(1337, 5, ic) == 3)
+    doAssert(ic == @[byte 0b00111111, 0b10011010, 0b00001010])
   block:
-    var
-      e = newSeq[byte]()
-      s = ""
-    for c in 0'u8.char .. 255'u8.char:
-      for c2 in 0'u8.char .. 255'u8.char:
-        e.setLen(0)
-        s.setLen(0)
-        hcencode("" & c & c2, e)
-        doAssert hcdecode(e, s) != -1
-        doAssert s == "" & c & c2
+    echo "Test Encoding 42 Starting at an Octet Boundary"
+    var ic = newSeq[byte]()
+    doAssert(intencode(42, 8, ic) == 1)
+    doAssert(ic == @[byte 0b00101010])
   block:
-    var
-      e = newSeq[byte]()
-      s = ""
-      res = ""
-    for c in 0'u8.char .. 255'u8.char:
-      s.add(c)
-    hcencode(s, e)
-    doAssert hcdecode(e, res) != -1
-    doAssert s == res
-  block:
-    var
-      e = newSeq[byte]()
-      s = ""
-      res = ""
-    for c in 'a' .. 'z':
-      s.add(c)
-    for c in 'A' .. 'Z':
-      s.add(c)
-    for c in '0' .. '9':
-      s.add(c)
-    hcencode(s, e)
-    doAssert hcdecode(e, res) != -1
-    doAssert s == res
+    echo "Test Long lit int32"
+    var ic = newSeq[byte]()
+    doAssert(intencode(2097406, 8, ic) == 4)
+    doAssert(ic == @[
+      byte 0b11111111, 0b11111111,
+      0b11111111, 0b01111111])

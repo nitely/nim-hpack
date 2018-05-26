@@ -17,8 +17,8 @@ proc intdecode(s: openArray[byte], n: int, d: var int): int =
   ## Decoded int is assigned to ``d``
   assert n in {1 .. 8}
   assert len(s) > 0
-  d = 1 shl n - 1
   result = 1
+  d = 1 shl n - 1
   if (s[0].int and d) < d:
     d = s[0].int and d
     return
@@ -227,7 +227,7 @@ proc add(q: var DynHeaders, x: openArray[char], b: int) {.inline.} =
     n: q.pos ..< q.pos+b,
     v: q.pos+b .. q.pos+x.len-1)
   q.length = min(q.b.len, q.length+1)
-  for c in x:
+  for c in x:  # todo: memcopy
     q.s[q.pos] = c
     q.pos = (q.pos+1) and (q.s.len-1)
   inc(q.filled, x.len+32)
@@ -243,10 +243,11 @@ iterator items(q: DynHeaders): HBounds {.inline.} =
 
 proc substr(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
   assert hb.b >= hb.a
-  let o = s.len
+  var i = s.len
   s.setLen(s.len+hb.b-hb.a+1)
-  for i in hb.a .. hb.b:
-    s[o+i-hb.a] = q.s[i and (q.s.len-1)]
+  for j in hb.a .. hb.b:  # todo: memcopy
+    s[i] = q.s[j and (q.s.len-1)]
+    inc i
 
 proc addIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
   let hb = dh[i]
