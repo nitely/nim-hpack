@@ -5,6 +5,8 @@ import
   huffman_encoder,
   hcollections
 
+export hcollections
+
 proc `==`(a, b: openArray[char]): bool {.inline.} =
   result = true
   if a.len != b.len:

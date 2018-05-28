@@ -5,6 +5,8 @@ import
   headers_data,
   hcollections
 
+export hcollections
+
 type
   DecodeError = object of ValueError
 
