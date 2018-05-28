@@ -1,6 +1,7 @@
 import unittest
 
 import hpack/huffman_decoder
+import hpack/hcollections
 import hpack
 
 proc toBytes(s: seq[uint16]): seq[byte] =

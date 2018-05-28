@@ -6,4 +6,5 @@ src/hpack/huffman_encoder
 src/hpack/decoder
 src/hpack/encoder
 src/hpack/strqueue
+src/hpack/hcollections
 tests/tests
