@@ -138,3 +138,23 @@ when isMainModule:
     doAssert(ic == @[
       byte 0b11111111, 0b11111111,
       0b11111111, 0b01111111])
+
+  proc toBytes(s: seq[uint16]): seq[byte] =
+    result = newSeqOfCap[byte](len(s) * 2)
+    for b in s:
+      result.add(byte(b shr 8))
+      result.add(byte(b and 0xff))
+
+  block:
+    echo "Test Literal Header Field with Indexing"
+    var
+      dhe = initDynHeaders(256, 16)
+      ic = newSeq[byte]()
+      expected = @[
+        0x400a'u16, 0x6375, 0x7374, 0x6f6d,
+        0x2d6b, 0x6579, 0x0d63, 0x7573,
+        0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
+    doAssert hencode(
+      "custom-key", "custom-header", dhe, ic, store = true) == expected.len
+    doAssert ic == expected
+    doAssert $dhe == "custom-key: custom-header\r\L"

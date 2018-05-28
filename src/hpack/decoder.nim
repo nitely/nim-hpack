@@ -127,6 +127,15 @@ iterator items*(d: DecodedStr): DecodedSlice {.inline.} =
     inc i
     inc(j, 2)
 
+proc `$`*(d: DecodedStr): string {.inline.} =
+  ## Use it for debugging purposes only
+  result = ""
+  for h in d:
+    result.add(d.s[h.n])
+    result.add(": ")
+    result.add(d.s[h.v])
+    result.add("\r\L")
+
 proc strdecode(s: openArray[byte], d: var DecodedStr): int =
   ## Decode a literal string.
   ## Return number of consumed octets.
