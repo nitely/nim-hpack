@@ -1,11 +1,26 @@
 ## HPACK encoder
 
-import huffman_encoder
+import
+  headers_data,
+  huffman_encoder,
+  hcollections
+
+proc `==`(a, b: openArray[char]): bool {.inline.} =
+  result = true
+  if a.len != b.len:
+    return false
+  # todo: memcmp?
+  var i = 0
+  while i < a.len:
+    if a[i] != b[i]:
+      return false
+    inc i
 
 proc intencode(x: int, n: int, s: var seq[byte]): int =
   ## Encode using N-bit prefix.
   ## Return number of octets.
-  ## First byte's bit 2^N is set for convenience
+  ## First byte's 2^N bit is set for convenience
+  # todo: add option to not set 2^N bit
   assert n in {1 .. 8}
   result = 1
   let np = 1 shl n - 1
@@ -21,6 +36,82 @@ proc intencode(x: int, n: int, s: var seq[byte]): int =
     inc result
   s.add(x.uint8)
   inc result
+
+proc strencode(x: openArray[char], s: var seq[byte], huffman: bool): int =
+  result = 0
+  if huffman:
+    inc(result, intencode(hcencodeLen(x), 7, s))
+    inc(result, hcencode(x, s))
+  else:
+    let sLen = s.len
+    inc(result, intencode(x.len, 7, s))
+    s[sLen] = s[sLen] and (1 shl 7)-1  # clear 2^N bit
+    # todo: memcopy
+    inc(result, x.len)
+    var i = s.len
+    s.setLen(s.len+x.len)
+    for c in x:
+      s[i] = c.uint8
+      inc i
+
+proc findInTable(s: openArray[char], dh: DynHeaders): int =
+  ## Find a header name in table
+  result = -1
+  # todo: check if min hash is faster
+  for i, h in headersTable.pairs:
+    if s == h[0]:
+      result = i
+      return
+  for i, hb in dh.pairs:
+    if cmp(dh, hb.n, s):
+      result = headersTable.len+i
+      return
+
+proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: int): bool =
+  assert i > 0
+  let idyn = i-headersTable.len
+  if i < headersTable.len:
+    return s == headersTable[i][1]
+  elif idyn < dh.len:
+    return cmp(dh, dh[idyn].v, s)
+  else:
+    assert false
+
+proc hencode*(
+    h, v: openArray[char],
+    dh: var DynHeaders,
+    s: var seq[byte],
+    store = false,
+    huffman = false): int =
+  let hidx = findInTable(h, dh)
+  # Indexed
+  if hidx != -1 and cmpTableValue(v, dh, hidx):
+    result = intencode(hidx+1, 7, s)
+    return
+  # incremental indexing
+  if store:
+    if hidx != -1:
+      result = intencode(hidx+1, 6, s)
+      inc(result, strencode(v, s, huffman))
+    else:
+      result = intencode(0, 6, s)
+      inc(result, strencode(h, s, huffman))
+      inc(result, strencode(v, s, huffman))
+    dh.add(h, v)
+    return
+  # without indexing or
+  # never indexed
+  if hidx != -1:
+    let sLen = s.len
+    result = intencode(hidx+1, 4, s)
+    s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
+    inc(result, strencode(v, s, huffman))
+  else:
+    let sLen = s.len
+    result = intencode(0, 4, s)
+    s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
+    inc(result, strencode(h, s, huffman))
+    inc(result, strencode(v, s, huffman))
 
 when isMainModule:
   import decoder

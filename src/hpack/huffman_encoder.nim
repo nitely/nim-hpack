@@ -1,8 +1,18 @@
 import huffman_data
 
+proc hcencodeLen*(s: openArray[char]): int =
+  result = 0
+  var sLen = 0
+  for c in s:
+    inc(sLen, hcDecTable[c.ord][1].int)
+  result = sLen div 8
+  if sLen mod 8 != 0:
+    inc result
+
 # todo: align + copy bytes? but chars
 #       are usually < a single byte, so meh
-proc hcencode*(s: string, e: var seq[byte]) =
+proc hcencode*(s: openArray[char], e: var seq[byte]): int =
+  result = e.len
   var
     i = e.len
     j = 0
@@ -27,6 +37,7 @@ proc hcencode*(s: string, e: var seq[byte]) =
     j = (j+1) and 7
     i = if j == 0: i+1 else: i
   e.setLen(i)
+  result = i - result
 
 when isMainModule:
   import huffman_decoder
@@ -35,7 +46,7 @@ when isMainModule:
     var
       e = newSeq[byte]()
       s = ""
-    hcencode("a", e)
+    doAssert hcencode("a", e) == "a".hcencodeLen
     doAssert hcdecode(e, s) != -1
     doAssert s == "a"
   block:
@@ -45,7 +56,7 @@ when isMainModule:
     for c in 0'u8.char .. 255'u8.char:
       e.setLen(0)
       s.setLen(0)
-      hcencode("" & c, e)
+      doAssert hcencode("" & c, e) == hcencodeLen("" & c)
       doAssert hcdecode(e, s) != -1
       doAssert s == "" & c
   block:
@@ -56,7 +67,7 @@ when isMainModule:
       for c2 in 0'u8.char .. 255'u8.char:
         e.setLen(0)
         s.setLen(0)
-        hcencode("" & c & c2, e)
+        doAssert hcencode("" & c & c2, e) == hcencodeLen("" & c & c2)
         doAssert hcdecode(e, s) != -1
         doAssert s == "" & c & c2
   block:
@@ -66,7 +77,7 @@ when isMainModule:
       res = ""
     for c in 0'u8.char .. 255'u8.char:
       s.add(c)
-    hcencode(s, e)
+    doAssert hcencode(s, e) == s.hcencodeLen
     doAssert hcdecode(e, res) != -1
     doAssert s == res
   block:
@@ -80,6 +91,6 @@ when isMainModule:
       s.add(c)
     for c in '0' .. '9':
       s.add(c)
-    hcencode(s, e)
+    doAssert hcencode(s, e) == s.hcencodeLen
     doAssert hcdecode(e, res) != -1
     doAssert s == res
