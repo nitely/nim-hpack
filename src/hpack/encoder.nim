@@ -56,6 +56,15 @@ proc strencode(x: openArray[char], s: var seq[byte], huffman: bool): int =
       s[i] = c.uint8
       inc i
 
+type
+  HeaderRepr = enum
+    rprIndexed
+    rprIncIndexing
+    rprNoIndexing
+    rprNeverIndexed
+
+# proc litencode
+
 proc findInTable(s: openArray[char], dh: DynHeaders): int =
   ## Find a header name in table
   result = -1
@@ -79,19 +88,26 @@ proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: int): bool =
   else:
     assert false
 
+type
+  Store = enum
+    stoYes
+    stoNo
+    stoNever
+
 proc hencode*(
     h, v: openArray[char],
     dh: var DynHeaders,
     s: var seq[byte],
-    store = false,
+    store = stoNo,
     huffman = false): int =
   let hidx = findInTable(h, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
     result = intencode(hidx+1, 7, s)
     return
+  case store
   # incremental indexing
-  if store:
+  of stoYes:
     if hidx != -1:
       result = intencode(hidx+1, 6, s)
       inc(result, strencode(v, s, huffman))
@@ -100,20 +116,28 @@ proc hencode*(
       inc(result, strencode(h, s, huffman))
       inc(result, strencode(v, s, huffman))
     dh.add(h, v)
-    return
   # without indexing or
+  of stoNo:
+    if hidx != -1:
+      let sLen = s.len
+      result = intencode(hidx+1, 4, s)
+      s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
+      inc(result, strencode(v, s, huffman))
+    else:
+      let sLen = s.len
+      result = intencode(0, 4, s)
+      s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
+      inc(result, strencode(h, s, huffman))
+      inc(result, strencode(v, s, huffman))
   # never indexed
-  if hidx != -1:
-    let sLen = s.len
-    result = intencode(hidx+1, 4, s)
-    s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
-    inc(result, strencode(v, s, huffman))
-  else:
-    let sLen = s.len
-    result = intencode(0, 4, s)
-    s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
-    inc(result, strencode(h, s, huffman))
-    inc(result, strencode(v, s, huffman))
+  of stoNever:
+    if hidx != -1:
+      result = intencode(hidx+1, 4, s)
+      inc(result, strencode(v, s, huffman))
+    else:
+      result = intencode(0, 4, s)
+      inc(result, strencode(h, s, huffman))
+      inc(result, strencode(v, s, huffman))
 
 when isMainModule:
   import decoder
@@ -157,6 +181,6 @@ when isMainModule:
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
     doAssert hencode(
-      "custom-key", "custom-header", dhe, ic, store = true) == expected.len
+      "custom-key", "custom-header", dhe, ic, store = stoYes) == expected.len
     doAssert ic == expected
     doAssert $dhe == "custom-key: custom-header\r\L"
