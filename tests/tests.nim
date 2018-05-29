@@ -806,6 +806,7 @@ suite "Uncategorized tests":
     dh.reset()
     hdecodeAll(ic, dh, d)
     check $d == "pragma: \r\L"
+    check $dh == "pragma: \r\L"
 
   test "Empty header value huffman":
     var dh = initDynHeaders(4096, 16)
@@ -815,3 +816,4 @@ suite "Uncategorized tests":
     dh.reset()
     hdecodeAll(ic, dh, d)
     check $d == "pragma: \r\L"
+    check $dh == "pragma: \r\L"

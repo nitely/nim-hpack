@@ -139,7 +139,7 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
     inc i
 
 proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
-  assert hb.b >= hb.a
+  assert hb.b+1 >= hb.a
   let sLen = s.len
   let bLen = hb.b-hb.a+1
   s.setLen(sLen+bLen)
