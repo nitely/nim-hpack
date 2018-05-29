@@ -2,6 +2,17 @@
 
 from math import isPowerOfTwo
 
+template strcopy(x: var string, y: openArray[char], xi, yi, xyLen: int) =
+  var
+    i = 0
+    j = xi
+    k = yi
+  while i < xyLen:
+    x[j] = y[k]
+    inc i
+    inc j
+    inc k
+
 type
   HBounds* = object
     ## Name and value boundaries
@@ -87,13 +98,14 @@ proc add*(q: var DynHeaders, h, v: openArray[char]) {.inline.} =
     n: q.pos .. q.pos+h.len-1,
     v: q.pos+h.len .. q.pos+hvLen-1)
   q.length = min(q.b.len, q.length+1)
-  # todo: memcopy
-  for c in h:
-    q.s[q.pos] = c
-    q.pos = (q.pos+1) and (q.s.len-1)
-  for c in v:
-    q.s[q.pos] = c
-    q.pos = (q.pos+1) and (q.s.len-1)
+  let nLen = min(h.len, q.s.len-q.pos)
+  strcopy(q.s, h, q.pos, 0, nLen)
+  strcopy(q.s, h, 0, nLen, h.len-nLen)
+  q.pos = (q.pos+h.len) and (q.s.len-1)
+  let vLen = min(v.len, q.s.len-q.pos)
+  strcopy(q.s, v, q.pos, 0, vLen)
+  strcopy(q.s, v, 0, vLen, v.len-vLen)
+  q.pos = (q.pos+v.len) and (q.s.len-1)
   inc(q.filled, hvLen+32)
   assert q.filled <= q.s.len
 
@@ -120,11 +132,12 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
 
 proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
   assert hb.b >= hb.a
-  var i = s.len
-  s.setLen(s.len+hb.b-hb.a+1)
-  for j in hb.a .. hb.b:  # todo: memcopy
-    s[i] = q.s[j and (q.s.len-1)]
-    inc i
+  let sLen = s.len
+  let bLen = hb.b-hb.a+1
+  s.setLen(sLen+bLen)
+  let mLen = min(bLen, q.s.len-hb.a)
+  strcopy(s, q.s, sLen, hb.a, mLen)
+  strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
 proc `$`*(q: DynHeaders): string {.inline.} =
   ## Use it for debugging purposes only
