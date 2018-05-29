@@ -161,11 +161,6 @@ proc `$`*(q: DynHeaders): string {.inline.} =
     q.substr(result, initHBounds(hb.v, hb.v))
     result.add("\r\L")
 
-proc toStr(s: openArray[char]): string =
-  result = ""
-  for c in s:
-    result.add(c)
-
 proc cmp*(q: DynHeaders, b: Slice[int], s: openArray[char]): bool {.inline.} =
   ## Compare a header or value against a string
   result = true
