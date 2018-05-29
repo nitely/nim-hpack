@@ -103,15 +103,13 @@ type
     stoNo
     stoNever
 
-# todo: store = stoYes
-# todo: huffman = true
-# todo: litencode for DRY
+# todo: litencode for DRY-ness
 proc hencode*(
     h, v: openArray[char],
     dh: var DynHeaders,
     s: var seq[byte],
-    store = stoNo,
-    huffman = false): int =
+    store = stoYes,
+    huffman = true): int =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):

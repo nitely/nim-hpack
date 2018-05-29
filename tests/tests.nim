@@ -465,7 +465,7 @@ suite "Encoder - Header Field Representation Examples":
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
     check hencode(
-      "custom-key", "custom-header", dh, ic, store = stoYes) == expected.len
+      "custom-key", "custom-header", dh, ic, huffman = false) == expected.len
     check ic == expected
     check $dh == "custom-key: custom-header\r\L"
 
@@ -477,7 +477,8 @@ suite "Encoder - Header Field Representation Examples":
         0x040c'u16, 0x2f73, 0x616d,
         0x706c, 0x652f, 0x7061, 0x7468].toBytes
     doAssert hencode(
-      ":path", "/sample/path", dh, ic, store = stoNo) == expected.len
+      ":path", "/sample/path", dh,
+      ic, store = stoNo, huffman = false) == expected.len
     doAssert ic == expected
     doAssert dh.len == 0
 
@@ -490,7 +491,8 @@ suite "Encoder - Header Field Representation Examples":
         0x7264, 0x0673, 0x6563, 0x7265].toBytes
     expected.add(byte 0x74'u8)
     doAssert hencode(
-      "password", "secret", dh, ic, store = stoNever) == expected.len
+      "password", "secret", dh,
+      ic, store = stoNever, huffman = false) == expected.len
     doAssert ic == expected
     doAssert dh.len == 0
 
@@ -500,7 +502,8 @@ suite "Encoder - Header Field Representation Examples":
       ic = newSeq[byte]()
       expected = @[byte 0x82'u8]
     doAssert hencode(
-      ":method", "GET", dh, ic) == expected.len
+      ":method", "GET", dh,
+      ic, store = stoNo, huffman = false) == expected.len
     doAssert ic == expected
     doAssert dh.len == 0
 
@@ -521,7 +524,7 @@ suite "Encoder - Request Examples without Huffman Coding":
         [":authority", "www.example.com"]]
     for h in hs:
       discard hencode(
-        h[0], h[1], dh, ic, store = stoYes)
+        h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh == ":authority: www.example.com\r\L"
 
@@ -539,7 +542,7 @@ suite "Encoder - Request Examples without Huffman Coding":
         ["cache-control", "no-cache"]]
     for h in hs:
       discard hencode(
-        h[0], h[1], dh, ic, store = stoYes)
+        h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       "cache-control: no-cache\r\L" &
@@ -563,7 +566,7 @@ suite "Encoder - Request Examples without Huffman Coding":
         ["custom-key", "custom-value"]]
     for h in hs:
       discard hencode(
-        h[0], h[1], dh, ic, store = stoYes)
+        h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       "custom-key: custom-value\r\L" &
@@ -587,8 +590,7 @@ suite "Encoder - Request Examples with Huffman Coding":
         [":path", "/"],
         [":authority", "www.example.com"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes, huffman = true)
+      discard hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh == ":authority: www.example.com\r\L"
 
@@ -605,8 +607,7 @@ suite "Encoder - Request Examples with Huffman Coding":
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes, huffman = true)
+      discard hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "cache-control: no-cache\r\L" &
@@ -626,8 +627,7 @@ suite "Encoder - Request Examples with Huffman Coding":
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes, huffman = true)
+      discard hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "custom-key: custom-value\r\L" &
@@ -656,8 +656,7 @@ suite "Encoder - Response Examples without Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes)
+      discard hencode(h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       "location: https://www.example.com\r\L" &
@@ -676,8 +675,7 @@ suite "Encoder - Response Examples without Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes)
+      discard hencode(h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       ":status: 307\r\L" &
@@ -711,8 +709,7 @@ suite "Encoder - Response Examples without Huffman Coding":
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes)
+      discard hencode(h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
@@ -740,8 +737,7 @@ suite "Encoder - Response Examples with Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes, huffman = true)
+      discard hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "location: https://www.example.com\r\L" &
@@ -760,8 +756,7 @@ suite "Encoder - Response Examples with Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes, huffman = true)
+      discard hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       ":status: 307\r\L" &
@@ -794,8 +789,7 @@ suite "Encoder - Response Examples with Huffman Coding":
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
     for h in hs:
-      discard hencode(
-        h[0], h[1], dh, ic, store = stoYes, huffman = true)
+      discard hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
