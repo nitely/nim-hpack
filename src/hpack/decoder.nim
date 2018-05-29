@@ -158,7 +158,7 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
 proc addIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
   let hb = dh[i]
   dh.substr(d.s, hb)
-  d.b.add(d.s.len-(hb.v.b-hb.v.a+1))
+  d.b.add(d.s.len-hb.v.len)
   d.b.add(d.s.len)
 
 proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
@@ -222,8 +222,8 @@ proc litdecode(
   when store:
     let hsl = d[^1]
     h.add(
-      toOpenArray(d.s, hsl.n.a, hsl.v.b),
-      hsl.n.b-hsl.n.a+1)
+      toOpenArray(d.s, hsl.n.a, hsl.n.b),
+      toOpenArray(d.s, hsl.v.a, hsl.v.b))
 
 proc hdecode*(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
   ## Decode a single header.

@@ -122,11 +122,6 @@ proc add*(q: var DynHeaders, h, v: openArray[char]) {.inline.} =
   inc(q.filled, hvLen+32)
   assert q.filled <= q.s.len
 
-# todo: remove?
-proc add*(q: var DynHeaders, hv: openArray[char], b: int) {.inline.} =
-  assert b < hv.len
-  q.add(toOpenArray(hv, 0, b-1), toOpenArray(hv, b, hv.len-1))
-
 iterator items*(q: DynHeaders): HBounds {.inline.} =
   ## Yield headers in FIFO order
   var i = 0
@@ -176,19 +171,19 @@ when isMainModule:
   block:
     echo "Test DynHeaders"
     var dh = initDynHeaders(256, 16)
-    dh.add("cache-controlprivate", "cache-control".len)
-    dh.add("dateMon, 21 Oct 2013 20:13:21 GMT", "date".len)
-    dh.add("locationhttps://www.example.com", "location".len)
-    dh.add(":status307", ":status".len)
+    dh.add("cache-control", "private")
+    dh.add("date", "Mon, 21 Oct 2013 20:13:21 GMT")
+    dh.add("location", "https://www.example.com")
+    dh.add(":status", "307")
     doAssert($dh ==
       ":status: 307\r\L" &
       "location: https://www.example.com\r\L" &
       "date: Mon, 21 Oct 2013 20:13:21 GMT\r\L" &
       "cache-control: private\r\L")
-    dh.add("dateMon, 21 Oct 2013 20:13:22 GMT", "date".len)
-    dh.add("content-encodinggzip", "content-encoding".len)
-    dh.add("set-cookiefoo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
-      "max-age=3600; version=1", "set-cookie".len)
+    dh.add("date", "Mon, 21 Oct 2013 20:13:22 GMT")
+    dh.add("content-encoding", "gzip")
+    dh.add("set-cookie", "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
+      "max-age=3600; version=1")
     doAssert($dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
       "max-age=3600; version=1\r\L" &
@@ -197,7 +192,7 @@ when isMainModule:
   block:
     echo "Test DynHeaders filled"
     var dh = initDynHeaders(256, 16)
-    dh.add("foobar", "foo".len)
+    dh.add("foo", "bar")
     doAssert dh.filled == "foobar".len+32
     doAssert dh.pop() == initHBounds(
       0 ..< "foo".len,
@@ -208,17 +203,17 @@ when isMainModule:
     var s = newString(256-32)
     for i in 0 .. s.len-1:
       s[i] = 'a'
-    dh.add(s, 1)
+    dh.add(s, "")
     doAssert dh.filled == 256
     discard dh.pop()
     doAssert dh.filled == 0
-    dh.add(s, 1)
-    dh.add("abc", 1)
+    dh.add(s, "")
+    dh.add("a", "bc")
     doAssert dh.filled == "abc".len+32
   block:
     var dh = initDynHeaders(256, 16)
-    dh.add("abc", 1)
-    dh.add("abc", 1)
+    dh.add("a", "bc")
+    dh.add("a", "bc")
     doAssert dh.filled == ("abc".len+32)*2
     discard dh.pop()
     doAssert dh.filled == "abc".len+32
@@ -227,14 +222,14 @@ when isMainModule:
   block:
     echo "Test DynHeaders length"
     var dh = initDynHeaders(1024, 4)
-    dh.add("foobar", "foo".len)
+    dh.add("foo", "bar")
     doAssert dh.length == 1
     discard dh.pop()
     doAssert dh.length == 0
     for _ in 0 ..< 4:
-      dh.add("abc", 1)
+      dh.add("a", "bc")
     doAssert dh.length == 4
-    dh.add("abc", 1)
+    dh.add("a", "bc")
     doAssert dh.length == 4
     for _ in 0 ..< 4:
       discard dh.pop()
