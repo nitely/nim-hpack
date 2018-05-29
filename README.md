@@ -66,7 +66,7 @@ proc toBytes(s: seq[uint16]): seq[byte] =
 var resp = newSeq[byte]()
 var dh = initDynHeaders(256, 16)
 discard hencode(":method", "GET", dh, resp)
-discard hencode(":scheme", "GET", dh, resp)
+discard hencode(":scheme", "http", dh, resp)
 discard hencode(":path", "/", dh, resp)
 discard hencode(":authority", "www.example.com", dh, resp)
 assert resp == @[
@@ -76,7 +76,7 @@ assert resp == @[
 # Second response
 resp.setLen(0)
 discard hencode(":method", "GET", dh, resp)
-discard hencode(":scheme", "GET", dh, resp)
+discard hencode(":scheme", "http", dh, resp)
 discard hencode(":path", "/", dh, resp)
 discard hencode(":authority", "www.example.com", dh, resp)
 discard hencode("cache-control", "no-cache", dh, resp)

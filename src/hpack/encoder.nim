@@ -105,6 +105,7 @@ type
 
 # todo: store = stoYes
 # todo: huffman = true
+# todo: litencode for DRY
 proc hencode*(
     h, v: openArray[char],
     dh: var DynHeaders,
