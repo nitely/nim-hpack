@@ -231,11 +231,19 @@ proc litdecode(
         d.s[hsl.n.a .. hsl.n.b],
         d.s[hsl.v.a .. hsl.v.b])
 
-proc hdecode*(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
+proc hdecode*(
+    s: openArray[byte],
+    h: var DynHeaders,
+    d: var DecodedStr,
+    dhSize: var int): int =
   ## Decode a single header.
   ## Return number of consumed octets.
   ## ``s`` bytes sequence must not be empty.
+  ## ``dhSize`` will contain the
+  ## dynamic table size update or
+  ## ``-1`` otherwise
   assert len(s) > 0
+  dhSize = -1
   # indexed
   if s[0] shr 7 == 1:
     var dint = 0
@@ -253,7 +261,18 @@ proc hdecode*(s: openArray[byte], h: var DynHeaders, d: var DecodedStr): int =
   if s[0] shr 4 <= 1:
     result = litdecode(s, h, d, 4, false)
     return
+  # dyn table size update
+  if s[0] shr 5 == 1:
+    result = intdecode(s, 5, dhSize)
+    return
   raiseDecodeError("unknown octet prefix")
+
+proc hdecode*(
+    s: openArray[byte],
+    h: var DynHeaders,
+    d: var DecodedStr): int =
+  var dhSize = 0
+  result = hdecode(s, h, d, dhSize)
 
 proc hdecodeAll*(
     s: openArray[byte],

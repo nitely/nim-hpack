@@ -149,6 +149,14 @@ proc hencode*(
       inc(result, strencode(h, s, huffman))
       inc(result, strencode(v, s, huffman))
 
+proc signalDynTableSizeUpdate*(s: var seq[byte], size: int): int =
+  # The actual resizing
+  # should be done on ACK, and also all
+  # headers should be encoded with
+  # ``stoNo`` until then,
+  # but the spec does not spell this
+  result = intencode(size, 5, s)
+
 when isMainModule:
   import decoder
 
