@@ -13,6 +13,19 @@ template strcopy(x: var string, y: openArray[char], xi, yi, xyLen: int) =
     inc j
     inc k
 
+proc strcmp(x, y: openArray[char], xi, yi, xyLen: int): bool {.inline.} =
+  result = true
+  var
+    i = 0
+    j = xi
+    k = yi
+  while i < xyLen:
+    if x[j] != y[k]:
+      return false
+    inc i
+    inc j
+    inc k
+
 type
   HBounds* = object
     ## Name and value boundaries
@@ -158,21 +171,11 @@ proc cmp*(q: DynHeaders, b: Slice[int], s: openArray[char]): bool {.inline.} =
   result = true
   if b.len != s.len:
     return false
-  let mLen = min(q.s.len, b.b+1)
-  var
-    i = 0
-    j = b.a
-  while j < mLen:
-    if s[i] != q.s[j]:
-      return false
-    inc i
-    inc j
-  j = 0
-  while i < s.len:
-    if s[i] != q.s[j]:
-      return false
-    inc i
-    inc j
+  let mLen = min(b.len, q.s.len-b.a)
+  if not strcmp(s, q.s, 0, b.a, mLen):
+    return false
+  if not strcmp(s, q.s, mLen, 0, b.len-mLen):
+    return false
 
 when isMainModule:
   block:
