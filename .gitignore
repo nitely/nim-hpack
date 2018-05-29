@@ -8,3 +8,4 @@ src/hpack/encoder
 src/hpack/strqueue
 src/hpack/hcollections
 tests/tests
+tests/sometests

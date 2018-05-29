@@ -27,6 +27,8 @@ proc hcdecode*(s: openArray[byte], d: var string): int =
   ## If there's an error, ``d``
   ## may contain a partial decoded string
   result = 0
+  if s.len == 0:
+    return
   var
     state = [0'u8, 0, 0]
     i = d.len

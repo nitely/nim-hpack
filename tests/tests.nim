@@ -796,3 +796,22 @@ suite "Encoder - Response Examples with Huffman Coding":
       "max-age=3600; version=1\r\L" &
       "content-encoding: gzip\r\L" &
       "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L"
+
+suite "Uncategorized tests":
+  test "Empty header value":
+    var dh = initDynHeaders(4096, 16)
+    var ic = newSeq[byte]()
+    discard hencode("pragma", "", dh, ic, huffman = false)
+    var d = initDecodedStr()
+    dh.reset()
+    hdecodeAll(ic, dh, d)
+    check $d == "pragma: \r\L"
+
+  test "Empty header value huffman":
+    var dh = initDynHeaders(4096, 16)
+    var ic = newSeq[byte]()
+    discard hencode("pragma", "", dh, ic, huffman = true)
+    var d = initDecodedStr()
+    dh.reset()
+    hdecodeAll(ic, dh, d)
+    check $d == "pragma: \r\L"
