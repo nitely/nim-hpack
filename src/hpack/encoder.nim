@@ -65,21 +65,7 @@ type
 
 # proc litencode
 
-proc findInTable(s: openArray[char], dh: DynHeaders): int =
-  ## Find a header name in table
-  result = -1
-  # todo: check if min hash is faster
-  for i, h in headersTable.pairs:
-    if s == h[0]:
-      result = i
-      return
-  for i, hb in dh.pairs:
-    if cmp(dh, hb.n, s):
-      result = headersTable.len+i
-      return
-
 proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: int): bool =
-  assert i > 0
   let idyn = i-headersTable.len
   if i < headersTable.len:
     return s == headersTable[i][1]
@@ -88,19 +74,44 @@ proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: int): bool =
   else:
     assert false
 
+proc findInTable(h, v: openArray[char], dh: DynHeaders): int =
+  ## Find a header name in table
+  result = -1
+  var first = -1
+  # todo: check if min hash is faster
+  for i, h0 in headersTable.pairs:
+    if h != h0[0]:
+      continue
+    result = i
+    if cmpTableValue(v, dh, result):
+      return
+    if first == -1:
+      first = result
+  for i, hb in dh.pairs:
+    if not cmp(dh, hb.n, h):
+      continue
+    result = headersTable.len+i
+    if cmpTableValue(v, dh, result):
+      return
+    if first == -1:
+      first = result
+  result = first
+
 type
-  Store = enum
+  Store* = enum
     stoYes
     stoNo
     stoNever
 
+# todo: store = stoYes
+# todo: huffman = true
 proc hencode*(
     h, v: openArray[char],
     dh: var DynHeaders,
     s: var seq[byte],
     store = stoNo,
     huffman = false): int =
-  let hidx = findInTable(h, dh)
+  let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
     result = intencode(hidx+1, 7, s)
@@ -164,23 +175,3 @@ when isMainModule:
     doAssert(ic == @[
       byte 0b11111111, 0b11111111,
       0b11111111, 0b01111111])
-
-  proc toBytes(s: seq[uint16]): seq[byte] =
-    result = newSeqOfCap[byte](len(s) * 2)
-    for b in s:
-      result.add(byte(b shr 8))
-      result.add(byte(b and 0xff))
-
-  block:
-    echo "Test Literal Header Field with Indexing"
-    var
-      dhe = initDynHeaders(256, 16)
-      ic = newSeq[byte]()
-      expected = @[
-        0x400a'u16, 0x6375, 0x7374, 0x6f6d,
-        0x2d6b, 0x6579, 0x0d63, 0x7573,
-        0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
-    doAssert hencode(
-      "custom-key", "custom-header", dhe, ic, store = stoYes) == expected.len
-    doAssert ic == expected
-    doAssert $dhe == "custom-key: custom-header\r\L"

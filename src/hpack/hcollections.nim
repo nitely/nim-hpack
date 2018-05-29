@@ -135,20 +135,27 @@ proc `$`*(q: DynHeaders): string {.inline.} =
     q.substr(result, initHBounds(hb.v, hb.v))
     result.add("\r\L")
 
+proc toStr(s: openArray[char]): string =
+  result = ""
+  for c in s:
+    result.add(c)
+
 proc cmp*(q: DynHeaders, b: Slice[int], s: openArray[char]): bool {.inline.} =
   ## Compare a header or value against a string
   result = true
   if b.len != s.len:
     return false
-  let mLen = min(s.len, q.s.len)
-  var i = 0
-  while i < mLen:
-    if s[i] != q.s[i]:
+  let mLen = min(q.s.len, b.b+1)
+  var
+    i = 0
+    j = b.a
+  while j < mLen:
+    if s[i] != q.s[j]:
       return false
     inc i
-  let mLen0 = max(s.len, q.s.len)-mLen
-  var j = 0
-  while j < mLen0:
+    inc j
+  j = 0
+  while i < s.len:
     if s[i] != q.s[j]:
       return false
     inc i

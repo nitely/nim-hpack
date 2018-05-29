@@ -54,12 +54,6 @@ type
     n*: Slice[int]
     v*: Slice[int]
 
-proc len*(ds: DecodedSlice): int {.inline.} =
-  ds.v.b-ds.n.a-1
-
-proc len*(s: Slice[int]): int {.inline.} =
-  s.b-s.a-1
-
 type
   DecodedStr* = object
     ## A decoded string contains
