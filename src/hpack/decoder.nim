@@ -238,7 +238,8 @@ proc hdecode*(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr,
-    dhSize: var int): int =
+    dhSize: var int): int
+    {.raises: [DynHeadersError, DecodeError].} =
   ## Decode a single header.
   ## Return number of consumed octets.
   ## ``s`` bytes sequence must not be empty.
@@ -274,7 +275,8 @@ proc hdecode*(
 proc hdecode*(
     s: openArray[byte],
     h: var DynHeaders,
-    d: var DecodedStr): int =
+    d: var DecodedStr): int
+    {.raises: [DynHeadersError, DecodeError].} =
   var dhSize = 0
   result = hdecode(s, h, d, dhSize)
 
@@ -282,7 +284,8 @@ proc hdecodeAll*(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr,
-    dhSize: var int) =
+    dhSize: var int)
+    {.raises: [DynHeadersError, DecodeError].} =
   ## Decode all headers from the blob of bytes
   ## ``s`` and stores it into a decoded string``d``.
   ## The dynamic headers are stored into ``h``
@@ -299,7 +302,8 @@ proc hdecodeAll*(
 proc hdecodeAll*(
     s: openArray[byte],
     h: var DynHeaders,
-    d: var DecodedStr) =
+    d: var DecodedStr)
+    {.raises: [DynHeadersError, DecodeError].} =
   var dhSize = 0
   hdecodeAll(s, h, d, dhSize)
 

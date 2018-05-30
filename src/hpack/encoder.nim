@@ -112,7 +112,7 @@ proc hencode*(
     dh: var DynHeaders,
     s: var seq[byte],
     store = stoYes,
-    huffman = true): int =
+    huffman = true): int {.raises: [DynHeadersError].} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -152,7 +152,9 @@ proc hencode*(
       inc(result, strencode(h, s, huffman))
       inc(result, strencode(v, s, huffman))
 
-proc signalDynTableSizeUpdate*(s: var seq[byte], size: int): int =
+proc signalDynTableSizeUpdate*(
+    s: var seq[byte],
+    size: int): int {.raises: [].} =
   # The actual resizing
   # should be done on ACK, and also all
   # headers should be encoded with
