@@ -250,4 +250,26 @@ when isMainModule:
     doAssert dh.length == 4
     for _ in 0 ..< 4:
       discard dh.pop()
-    doAssert dh.length == 0
+  block:
+    echo "Test DynHeaders strsize"
+    var dh = initDynHeaders(76, 8)
+    dh.add("asd", "asd")
+    doAssert dh.filled == 38
+    dh.add("qwe", "qwe")
+    doAssert dh.filled == 76
+    doAssert dh.len == 2
+    var res = ""
+    dh.substr(res, dh[0])
+    doAssert res == "qweqwe"
+    res = ""
+    dh.substr(res, dh[1])
+    doAssert res == "asdasd"
+    dh.add("a", "")
+    doAssert dh.filled == 71
+    doAssert dh.len == 2
+    res = ""
+    dh.substr(res, dh[0])
+    doAssert res == "a"
+    res = ""
+    dh.substr(res, dh[1])
+    doAssert res == "qweqwe"
