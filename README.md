@@ -13,6 +13,10 @@ Based on [rfc7541](https://tools.ietf.org/html/rfc7541).
 nimble install hpack
 ```
 
+## Docs
+
+[nitely.github.io/nim-hpack](https://nitely.github.io/nim-hpack/)
+
 ## Usage
 
 ### Decode
