@@ -2,9 +2,11 @@
 
 from math import isPowerOfTwo
 
-import exceptions
+import
+  exceptions
 
-export exceptions
+export
+  exceptions
 
 type
   DynHeadersError* = object of HpackError
@@ -122,15 +124,15 @@ proc add*(q: var DynHeaders, h, v: openArray[char]) {.inline.} =
   let nLen = min(h.len, q.s.len-q.pos)
   strcopy(q.s, h, q.pos, 0, nLen)
   strcopy(q.s, h, 0, nLen, h.len-nLen)
-  q.pos = (q.pos+h.len) and (q.s.len-1)
+  q.pos = (q.pos+h.len) mod q.s.len
   let vLen = min(v.len, q.s.len-q.pos)
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
-  q.pos = (q.pos+v.len) and (q.s.len-1)
+  q.pos = (q.pos+v.len) mod q.s.len
   inc(q.filled, hvLen+32)
   assert q.filled <= q.s.len
 
-proc resize*(q: var DynHeaders, strsize: int) =
+proc resize*(q: var DynHeaders, strsize: int) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear the queue.
@@ -174,14 +176,12 @@ proc `$`*(q: DynHeaders): string {.inline.} =
 
 proc cmp*(q: DynHeaders, b: Slice[int], s: openArray[char]): bool {.inline.} =
   ## Compare a header or value against a string
-  result = true
   if b.len != s.len:
     return false
   let mLen = min(b.len, q.s.len-b.a)
-  if not strcmp(s, q.s, 0, b.a, mLen):
-    return false
-  if not strcmp(s, q.s, mLen, 0, b.len-mLen):
-    return false
+  result =
+    strcmp(s, q.s, 0, b.a, mLen) and
+    strcmp(s, q.s, mLen, 0, b.len-mLen)
 
 when isMainModule:
   block:
@@ -200,6 +200,7 @@ when isMainModule:
     dh.add("content-encoding", "gzip")
     dh.add("set-cookie", "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
       "max-age=3600; version=1")
+    echo $dh
     doAssert($dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
       "max-age=3600; version=1\r\L" &
