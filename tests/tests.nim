@@ -817,3 +817,15 @@ suite "Uncategorized tests":
     hdecodeAll(ic, dh, d)
     check $d == "pragma: \r\L"
     check $dh == "pragma: \r\L"
+
+  test "Dynamic table size update":
+    var ic = newSeq[byte]()
+    check signalDynTableSizeUpdate(ic, 256) == 3
+    check ic.len == 3
+    var d = initDecodedStr()
+    var dh = initDynHeaders(4096, 1024)
+    var dhSize = 0
+    hdecodeAll(ic, dh, d, dhSize)
+    check dhSize == 256
+    check $d == ""
+    check $dh == ""

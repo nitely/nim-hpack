@@ -273,3 +273,19 @@ when isMainModule:
     res = ""
     dh.substr(res, dh[1])
     doAssert res == "qweqwe"
+  block:
+    echo "Test DynHeaders resize"
+    var dh = initDynHeaders(256, 16)
+    dh.add("asd", "asd")
+    dh.add("qwe", "qwe")
+    dh.add("zxc", "zxc")
+    doAssert dh.len == 3
+    dh.resize(100)
+    doAssert dh.len == 2
+    doAssert $dh ==
+      "zxc: zxc\r\L" &
+      "qwe: qwe\r\L"
+    dh.resize(0)
+    doAssert dh.len == 0
+    dh.resize(256)
+    doAssert dh.len == 0
