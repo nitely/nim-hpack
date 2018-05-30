@@ -21,4 +21,6 @@ task test, "Test":
   exec "nim c -r tests/tests.nim"
 
 task docs, "Docs":
-  exec "nim doc2 -o:./docs/index.html ./src/hpack.nim"
+  exec "nim doc2 -o:./docs --project ./src/hpack.nim"
+  exec "mv ./docs/hpack.html ./docs/index.html"
+  exec "rm -fr ./docs/*/*_data.html"
