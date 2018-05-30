@@ -3,12 +3,15 @@
 import
   huffman_decoder,
   headers_data,
-  hcollections
+  hcollections,
+  exceptions
 
-export hcollections
+export
+  hcollections,
+  exceptions
 
 type
-  DecodeError = object of ValueError
+  DecodeError* = object of HpackError
 
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)

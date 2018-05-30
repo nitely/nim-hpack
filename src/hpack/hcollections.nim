@@ -2,6 +2,13 @@
 
 from math import isPowerOfTwo
 
+import exceptions
+
+export exceptions
+
+type
+  DynHeadersError* = object of HpackError
+
 template strcopy(x: var string, y: openArray[char], xi, yi, xyLen: int) =
   var
     i = 0
@@ -34,6 +41,8 @@ type
 proc initHBounds*(n, v: Slice[int]): HBounds =
   HBounds(n: n, v: v)
 
+# todo: HPACK does not know about the qsize limit,
+#       so raise an exception when there is no more room available
 type
   DynHeaders* = object
     ## A circular queue.
@@ -104,7 +113,7 @@ proc add*(q: var DynHeaders, h, v: openArray[char]) {.inline.} =
   while q.len > 0 and hvLen > q.left-32:
     discard q.pop()
   if hvLen > q.s.len-32:
-    raise newException(ValueError, "string too long")
+    raise newException(DynHeadersError, "string too long")
   q.head = (q.head+1) and (q.b.len-1)
   q.b[q.head] = HBounds(
     n: q.pos .. q.pos+h.len-1,

@@ -3,9 +3,12 @@
 import
   headers_data,
   huffman_encoder,
-  hcollections
+  hcollections,
+  exceptions
 
-export hcollections
+export
+  hcollections,
+  exceptions
 
 proc `==`(a, b: openArray[char]): bool {.inline.} =
   result = true
