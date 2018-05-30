@@ -267,6 +267,7 @@ proc hdecode*(
     return
   raiseDecodeError("unknown octet prefix")
 
+# todo: remove
 proc hdecode*(
     s: openArray[byte],
     h: var DynHeaders,
@@ -277,15 +278,27 @@ proc hdecode*(
 proc hdecodeAll*(
     s: openArray[byte],
     h: var DynHeaders,
-    d: var DecodedStr) =
+    d: var DecodedStr,
+    dhSize: var int) =
   ## Decode all headers from the blob of bytes
   ## ``s`` and stores it into a decoded string``d``.
   ## The dynamic headers are stored into ``h``
   ## to decode the next message.
+  ## The dynamic table size update is stored
+  ## into ``dhSize``, default to ``-1``
+  ## if there's no update
   var i = 0
   while i < s.len:
-    inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d))
+    inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
   assert i == s.len
+
+# todo: remove
+proc hdecodeAll*(
+    s: openArray[byte],
+    h: var DynHeaders,
+    d: var DecodedStr) =
+  var dhSize = 0
+  hdecodeAll(s, h, d, dhSize)
 
 when isMainModule:
   block:

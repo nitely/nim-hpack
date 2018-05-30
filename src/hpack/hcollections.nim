@@ -54,9 +54,8 @@ proc initDynHeaders*(strsize, qsize: Natural): DynHeaders {.inline.} =
   ## It must be greater than 32,
   ## since each header has 32 bytes
   ## of overhead according to spec.
-  ## Both string size and queue size
-  ## must be a power of two.
-  assert strsize > 32 and strsize.isPowerOfTwo
+  ## Queue size must be a power of two.
+  assert strsize > 32
   assert qsize.isPowerOfTwo
   DynHeaders(
     s: newString(strsize),
@@ -121,6 +120,14 @@ proc add*(q: var DynHeaders, h, v: openArray[char]) {.inline.} =
   q.pos = (q.pos+v.len) and (q.s.len-1)
   inc(q.filled, hvLen+32)
   assert q.filled <= q.s.len
+
+proc resize*(q: var DynHeaders, strsize: int) =
+  ## Resize the total headers max length.
+  ## Evicts entries that don't fit anymore.
+  ## Set to ``0`` to clear the queue.
+  q.s.setLen(strsize)
+  while strsize < q.filled:
+    discard q.pop()
 
 iterator items*(q: DynHeaders): HBounds {.inline.} =
   ## Yield headers in FIFO order
