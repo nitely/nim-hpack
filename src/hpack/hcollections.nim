@@ -86,14 +86,17 @@ proc len*(q: DynHeaders): int {.inline.} =
   ## Number of headers
   q.length
 
-# todo: rename to clear
-proc reset*(q: var DynHeaders) {.inline.} =
+proc clear*(q: var DynHeaders) {.inline.} =
   ## Efficiently clear the table
   q.head = q.b.len-1
   q.pos = 0
   q.filled = 0
   q.tail = 0
   q.length = 0
+
+proc reset*(q: var DynHeaders) {.deprecated.} =
+  ## Deprecated, use ``clear()`` instead
+  q.clear()
 
 proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
   ## Return header bounds at position ``i``

@@ -89,10 +89,13 @@ proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
   result.v.a = d.b[^ix]
   result.v.b = d.b[^(ix-1)]-1
 
-# todo: rename to clear
-proc reset*(d: var DecodedStr) {.inline.} =
+proc clear*(d: var DecodedStr) {.inline.} =
   d.s.setLen(0)
   d.b.setLen(0)
+
+proc reset*(d: var DecodedStr) {.deprecated.} =
+  ## Deprecated, use ``clear()`` instead
+  d.clear()
 
 proc add*(d: var DecodedStr, s: string) {.inline.} =
   ## Add either a header name or a value.
