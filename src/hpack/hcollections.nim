@@ -41,7 +41,8 @@ type
     n*, v*: Slice[int]
 
 proc initHBounds*(n, v: Slice[int]): HBounds =
-  ## Initialize ``HBounds`` with header's name and value
+  ## Initialize ``HBounds`` with
+  ## header's name and value
   HBounds(n: n, v: v)
 
 # todo: HPACK does not know about the qsize limit,
@@ -111,7 +112,8 @@ proc left(q: DynHeaders): int {.inline.} =
   q.s.len-q.filled
 
 proc pop(q: var DynHeaders): HBounds {.inline.} =
-  ## Return and remove header from the table in FIFO order
+  ## Return and remove header
+  ## from the table in FIFO order
   assert q.len > 0, "empty queue"
   result = q.b[q.tail]
   q.tail = (q.tail+1) and (q.b.len-1)
@@ -124,7 +126,7 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   ## Evicts entries that no longer fit.
   ## Items are added and removed in FIFO order
   let nvLen = v.len + n.len
-  while q.len > 0 and hvLen > q.left-32:
+  while q.len > 0 and nvLen > q.left-32:
     discard q.pop()
   if nvLen > q.s.len-32:
     raise newException(DynHeadersError, "string too long")
@@ -134,9 +136,9 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
     v: q.pos+n.len .. q.pos+nvLen-1)
   q.length = min(q.b.len, q.length+1)
   let nLen = min(n.len, q.s.len-q.pos)
-  strcopy(q.s, h, q.pos, 0, nLen)
-  strcopy(q.s, h, 0, nLen, n.len-nLen)
-  q.pos = (q.pos+h.len) mod q.s.len
+  strcopy(q.s, n, q.pos, 0, nLen)
+  strcopy(q.s, n, 0, nLen, n.len-nLen)
+  q.pos = (q.pos+n.len) mod q.s.len
   let vLen = min(v.len, q.s.len-q.pos)
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
