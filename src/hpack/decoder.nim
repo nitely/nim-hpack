@@ -89,6 +89,7 @@ proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
   result.v.a = d.b[^ix]
   result.v.b = d.b[^(ix-1)]-1
 
+# todo: rename to clear
 proc reset*(d: var DecodedStr) {.inline.} =
   d.s.setLen(0)
   d.b.setLen(0)

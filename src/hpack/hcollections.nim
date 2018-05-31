@@ -37,10 +37,11 @@ proc strcmp(x, y: openArray[char], xi, yi, xyLen: int): bool {.inline.} =
 
 type
   HBounds* = object
-    ## Name and value boundaries
+    ## Header's name and value boundaries
     n*, v*: Slice[int]
 
 proc initHBounds*(n, v: Slice[int]): HBounds =
+  ## Initialize ``HBounds`` with header's name and value
   HBounds(n: n, v: v)
 
 # todo: HPACK does not know about the qsize limit,
@@ -52,7 +53,10 @@ type
     ## dynamic header table. It has both
     ## total length of headers and
     ## number of headers limits.
-    ## It can be efficiently reused
+    ## It can be efficiently reused.
+    ## ``HBounds`` ends may be out of bounds and
+    ## need to be wrapped around. All
+    ## functions here take care of that
     s: string
     pos, filled: int
     b: seq[HBounds]
@@ -78,9 +82,12 @@ proc initDynHeaders*(strsize, qsize: Natural): DynHeaders {.inline.} =
     length: 0)
 
 proc len*(q: DynHeaders): int {.inline.} =
+  ## Number of headers
   q.length
 
+# todo: rename to clear
 proc reset*(q: var DynHeaders) {.inline.} =
+  ## Efficiently clear the table
   q.head = q.b.len-1
   q.pos = 0
   q.filled = 0
@@ -88,6 +95,7 @@ proc reset*(q: var DynHeaders) {.inline.} =
   q.length = 0
 
 proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
+  ## Return header bounds at position ``i``
   assert i < q.len, "out of bounds"
   q.b[(q.tail+q.len-1-i) and (q.b.len-1)]
 
@@ -103,6 +111,7 @@ proc left(q: DynHeaders): int {.inline.} =
   q.s.len-q.filled
 
 proc pop(q: var DynHeaders): HBounds {.inline.} =
+  ## Return and remove header from the table in FIFO order
   assert q.len > 0, "empty queue"
   result = q.b[q.tail]
   q.tail = (q.tail+1) and (q.b.len-1)
@@ -110,26 +119,29 @@ proc pop(q: var DynHeaders): HBounds {.inline.} =
   dec(q.filled, result.b-result.a+1+32)
   assert q.filled >= 0
 
-proc add*(q: var DynHeaders, h, v: openArray[char]) {.inline.} =
-  let hvLen = v.len + h.len
+proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
+  ## Add a header name and value to the table.
+  ## Evicts entries that no longer fit.
+  ## Items are added and removed in FIFO order
+  let nvLen = v.len + n.len
   while q.len > 0 and hvLen > q.left-32:
     discard q.pop()
-  if hvLen > q.s.len-32:
+  if nvLen > q.s.len-32:
     raise newException(DynHeadersError, "string too long")
   q.head = (q.head+1) and (q.b.len-1)
   q.b[q.head] = HBounds(
-    n: q.pos .. q.pos+h.len-1,
-    v: q.pos+h.len .. q.pos+hvLen-1)
+    n: q.pos .. q.pos+n.len-1,
+    v: q.pos+n.len .. q.pos+nvLen-1)
   q.length = min(q.b.len, q.length+1)
-  let nLen = min(h.len, q.s.len-q.pos)
+  let nLen = min(n.len, q.s.len-q.pos)
   strcopy(q.s, h, q.pos, 0, nLen)
-  strcopy(q.s, h, 0, nLen, h.len-nLen)
+  strcopy(q.s, h, 0, nLen, n.len-nLen)
   q.pos = (q.pos+h.len) mod q.s.len
   let vLen = min(v.len, q.s.len-q.pos)
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
   q.pos = (q.pos+v.len) mod q.s.len
-  inc(q.filled, hvLen+32)
+  inc(q.filled, nvLen+32)
   assert q.filled <= q.s.len
 
 proc resize*(q: var DynHeaders, strsize: int) {.inline.} =
@@ -157,6 +169,7 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
     inc i
 
 proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
+  ## Append a header name and value to ``s``
   assert hb.b+1 >= hb.a
   let sLen = s.len
   let bLen = hb.b-hb.a+1
@@ -166,7 +179,8 @@ proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
 proc `$`*(q: DynHeaders): string {.inline.} =
-  ## Use it for debugging purposes only
+  ## Use it for debugging purposes only.
+  ## Use ``substr`` and ``cmp`` for anything else
   result = ""
   for hb in q:
     q.substr(result, initHBounds(hb.n, hb.n))
@@ -175,7 +189,8 @@ proc `$`*(q: DynHeaders): string {.inline.} =
     result.add("\r\L")
 
 proc cmp*(q: DynHeaders, b: Slice[int], s: openArray[char]): bool {.inline.} =
-  ## Compare a header or value against a string
+  ## Efficiently compare a header name
+  ## or value against a string
   if b.len != s.len:
     return false
   let mLen = min(b.len, q.s.len-b.a)
