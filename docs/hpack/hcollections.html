@@ -1269,7 +1269,7 @@ function main() {
   <li><a class="reference" href="#[],DynHeaders,Natural"
     title="`[]`(q: DynHeaders; i: Natural): HBounds"><wbr />`[]`<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
   <li><a class="reference" href="#add,DynHeaders,openArray[char],openArray[char]"
-    title="add(q: var DynHeaders; h, v: openArray[char])"><wbr />add<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
+    title="add(q: var DynHeaders; n, v: openArray[char])"><wbr />add<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
   <li><a class="reference" href="#resize,DynHeaders,int"
     title="resize(q: var DynHeaders; strsize: int)"><wbr />resize<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
   <li><a class="reference" href="#substr,DynHeaders,string,HBounds"
@@ -1315,7 +1315,7 @@ function main() {
   <span class="Identifier">n</span><span class="Operator">*</span><span class="Other">,</span> <span class="Identifier">v</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">Slice</span><span class="Other">[</span><span class="Identifier">int</span><span class="Other">]</span>
 </pre></dt>
 <dd>
-Name and value boundaries
+Header's name and value boundaries
 
 </dd>
 <dt id="DynHeaders"><a name="DynHeaders"></a><pre><span class="Identifier">DynHeaders</span> <span class="Other">=</span> <span class="Keyword">object</span>
@@ -1325,7 +1325,7 @@ Name and value boundaries
   <span class="Identifier">head</span><span class="Other">,</span> <span class="Identifier">tail</span><span class="Other">,</span> <span class="Identifier">length</span><span class="Other">:</span> <span class="Identifier">int</span>
 </pre></dt>
 <dd>
-A circular queue. This is an implementaion of the dynamic header table. It has both total length of headers and number of headers limits. It can be efficiently reused
+A circular queue. This is an implementaion of the dynamic header table. It has both total length of headers and number of headers limits. It can be efficiently reused. <tt class="docutils literal"><span class="pre">HBounds</span></tt> ends may be out of bounds and need to be wrapped around. All functions here take care of that
 
 </dd>
 
@@ -1335,7 +1335,7 @@ A circular queue. This is an implementaion of the dynamic header table. It has b
 <dl class="item">
 <dt id="initHBounds"><a name="initHBounds,Slice[int],Slice[int]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">initHBounds</span><span class="Other">(</span><span class="Identifier">n</span><span class="Other">,</span> <span class="Identifier">v</span><span class="Other">:</span> <span class="Identifier">Slice</span><span class="Other">[</span><span class="Identifier">int</span><span class="Other">]</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">HBounds</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-
+Initialize <tt class="docutils literal"><span class="pre">HBounds</span></tt> with header's name and value
 
 </dd>
 <dt id="initDynHeaders"><a name="initDynHeaders,Natural,Natural"></a><pre><span class="Keyword">proc</span> <span class="Identifier">initDynHeaders</span><span class="Other">(</span><span class="Identifier">strsize</span><span class="Other">,</span> <span class="Identifier">qsize</span><span class="Other">:</span> <span class="Identifier">Natural</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
@@ -1345,23 +1345,23 @@ Initialize a dynamic headers table. <tt class="docutils literal"><span class="pr
 </dd>
 <dt id="len"><a name="len,DynHeaders"></a><pre><span class="Keyword">proc</span> <span class="Identifier">len</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-
+Number of headers
 
 </dd>
 <dt id="reset"><a name="reset,DynHeaders"></a><pre><span class="Keyword">proc</span> <span class="Identifier">reset</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-
+Efficiently clear the table
 
 </dd>
 <dt id="[]"><a name="[],DynHeaders,Natural"></a><pre><span class="Keyword">proc</span> <span class="Identifier">`[]`</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">i</span><span class="Other">:</span> <span class="Identifier">Natural</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">HBounds</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-
+Return header bounds at position <tt class="docutils literal"><span class="pre">i</span></tt>
 
 </dd>
-<dt id="add"><a name="add,DynHeaders,openArray[char],openArray[char]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">add</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">h</span><span class="Other">,</span> <span class="Identifier">v</span><span class="Other">:</span> <span class="Identifier">openArray</span><span class="Other">[</span><span class="Identifier">char</span><span class="Other">]</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">DynHeadersError</span><span class="Other">]</span><span class="Other">,</span>
+<dt id="add"><a name="add,DynHeaders,openArray[char],openArray[char]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">add</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">n</span><span class="Other">,</span> <span class="Identifier">v</span><span class="Other">:</span> <span class="Identifier">openArray</span><span class="Other">[</span><span class="Identifier">char</span><span class="Other">]</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Identifier">DynHeadersError</span><span class="Other">]</span><span class="Other">,</span>
     <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-
+Add a header name and value to the table. Evicts entries that no longer fit. Items are added and removed in FIFO order
 
 </dd>
 <dt id="resize"><a name="resize,DynHeaders,int"></a><pre><span class="Keyword">proc</span> <span class="Identifier">resize</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">strsize</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
@@ -1371,18 +1371,18 @@ Resize the total headers max length. Evicts entries that don't fit anymore. Set 
 </dd>
 <dt id="substr"><a name="substr,DynHeaders,string,HBounds"></a><pre><span class="Keyword">proc</span> <span class="Identifier">substr</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">s</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">hb</span><span class="Other">:</span> <span class="Identifier">HBounds</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-
+Append a header name and value to <tt class="docutils literal"><span class="pre">s</span></tt>
 
 </dd>
 <dt id="$"><a name="$,DynHeaders"></a><pre><span class="Keyword">proc</span> <span class="Identifier">`$`</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-Use it for debugging purposes only
+Use it for debugging purposes only. Use <tt class="docutils literal"><span class="pre">substr</span></tt> and <tt class="docutils literal"><span class="pre">cmp</span></tt> for anything else
 
 </dd>
 <dt id="cmp"><a name="cmp,DynHeaders,Slice[int],openArray[char]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">cmp</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">b</span><span class="Other">:</span> <span class="Identifier">Slice</span><span class="Other">[</span><span class="Identifier">int</span><span class="Other">]</span><span class="Other">;</span> <span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">openArray</span><span class="Other">[</span><span class="Identifier">char</span><span class="Other">]</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">bool</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span>
     <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
-Compare a header or value against a string
+Efficiently compare a header name or value against a string
 
 </dd>
 
@@ -1410,7 +1410,7 @@ Yield headers in FIFO order
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2018-05-30 13:00:35 UTC</small>
+        <small>Made with Nim. Generated: 2018-05-31 20:31:31 UTC</small>
       </div>
     </div>
   </div>
