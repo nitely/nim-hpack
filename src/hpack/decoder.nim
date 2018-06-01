@@ -53,27 +53,31 @@ type
   DecodedSlice* = object
     ## A decoded string slice.
     ## It has the boundaries of
-    ## header name and value
+    ## header's name and value
     n*: Slice[int]
     v*: Slice[int]
 
 type
   DecodedStr* = object
     ## A decoded string contains
-    ## a string of all header/value
+    ## a string of all headers name/value
     ## put together and a
     ## sequence of their boundaries
     s*: string
     b*: seq[int]
 
 proc initDecodedStr*(): DecodedStr {.inline.} =
+  ## Initialize a ``DecodedStr``
   DecodedStr(s: "", b: @[])
 
 proc len*(d: DecodedStr): int {.inline.} =
+  ## Return the lenght of a ``DecodedStr``
   assert d.b.len mod 2 == 0
   d.b.len div 2
 
 proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
+  ## Return the header slice of
+  ## a decoded string at position ``i``
   assert i.int < d.len, "out of bounds"
   let ix = i.int*2
   result.n.a = if ix == 0: 0 else: d.b[ix-1]
@@ -82,6 +86,8 @@ proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
   result.v.b = d.b[ix+1]-1
 
 proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
+  ## Return the header slice of
+  ## a decoded string at position ``i``
   assert i.int <= d.len, "out of bounds"
   let ix = i.int*2
   result.n.a = if ix == d.b.len: 0 else: d.b[^(ix+1)]
@@ -90,6 +96,7 @@ proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
   result.v.b = d.b[^(ix-1)]-1
 
 proc clear*(d: var DecodedStr) {.inline.} =
+  ## Efficiently clear a decoded string
   d.s.setLen(0)
   d.b.setLen(0)
 
@@ -109,7 +116,7 @@ proc add*(d: var DecodedStr, s: string) {.inline.} =
   d.b.add(d.s.len)
 
 iterator items*(d: DecodedStr): DecodedSlice {.inline.} =
-  ## Iterate over header names and values
+  ## Iterate over headers name and value
   ##
   ## .. code-block:: nim
   ##   var
@@ -156,24 +163,33 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
     d.b.add(d.s.len)
   else:
     # todo: memcopy
-    let j = d.s.len
+    var j = d.s.len
+    var k = n
     d.s.setLen(d.s.len + result-n)
-    for i in 0 ..< result-n:
-      d.s[j+i] = s[n+i].char
+    for _ in 0 ..< result-n:
+      d.s[j] = s[k].char
+      inc j
+      inc k
     d.b.add(d.s.len)
 
 proc addIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
+  ## Add header of dynamic table in
+  ## ``i`` position into a decoded string
   let hb = dh[i]
   dh.substr(d.s, hb)
   d.b.add(d.s.len-hb.v.len)
   d.b.add(d.s.len)
 
 proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
+  ## Add header's name of dynamic table in
+  ## ``i`` position into a decoded string
   let hb = dh[i]
   dh.substr(d.s, initHBounds(hb.n, hb.n))
   d.b.add(d.s.len)
 
 proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
+  ## Add header's name of static/dynamic table
+  ## in ``i`` position into a decoded string
   assert i > 0
   let
     i = i-1
@@ -186,6 +202,8 @@ proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
     raiseDecodeError("dyn header name not found")
 
 proc header(h: DynHeaders, d: var DecodedStr, i: int) =
+  ## Add header of static/dynamic table
+  ## in ``i`` position into a decoded string
   assert i > 0
   let
     i = i-1
@@ -275,12 +293,13 @@ proc hdecode*(
     return
   raiseDecodeError("unknown octet prefix")
 
-# todo: remove
 proc hdecode*(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr): int
-    {.raises: [DynHeadersError, DecodeError].} =
+    {.deprecated, raises: [DynHeadersError, DecodeError].} =
+  ## Deprecated, use ``hdecode(openArray[byte],
+  ## var DynHeaders, var DecodedStr, var int)`` instead
   var dhSize = 0
   result = hdecode(s, h, d, dhSize)
 
@@ -302,12 +321,13 @@ proc hdecodeAll*(
     inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
   assert i == s.len
 
-# todo: remove
 proc hdecodeAll*(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr)
-    {.raises: [DynHeadersError, DecodeError].} =
+    {.deprecated, raises: [DynHeadersError, DecodeError].} =
+  ## Deprecated, use ``hdecodeAll(openArray[byte],
+  ## var DynHeaders, var DecodedStr, var int)`` instead
   var dhSize = 0
   hdecodeAll(s, h, d, dhSize)
 
