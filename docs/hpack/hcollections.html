@@ -1264,6 +1264,8 @@ function main() {
     title="initDynHeaders(strsize, qsize: Natural): DynHeaders"><wbr />init<wbr />Dyn<wbr />Headers<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
   <li><a class="reference" href="#len,DynHeaders"
     title="len(q: DynHeaders): int"><wbr />len<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
+  <li><a class="reference" href="#clear,DynHeaders"
+    title="clear(q: var DynHeaders)"><wbr />clear<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
   <li><a class="reference" href="#reset,DynHeaders"
     title="reset(q: var DynHeaders)"><wbr />reset<span class="attachedType" style="visibility:hidden">DynHeaders</span></a></li>
   <li><a class="reference" href="#[],DynHeaders,Natural"
@@ -1348,9 +1350,14 @@ Initialize a dynamic headers table. <tt class="docutils literal"><span class="pr
 Number of headers
 
 </dd>
-<dt id="reset"><a name="reset,DynHeaders"></a><pre><span class="Keyword">proc</span> <span class="Identifier">reset</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dt id="clear"><a name="clear,DynHeaders"></a><pre><span class="Keyword">proc</span> <span class="Identifier">clear</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Efficiently clear the table
+
+</dd>
+<dt id="reset"><a name="reset,DynHeaders"></a><pre><span class="Keyword">proc</span> <span class="Identifier">reset</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Keyword">var</span> <span class="Identifier">DynHeaders</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">deprecated</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Deprecated, use <tt class="docutils literal"><span class="pre">clear()</span></tt> instead
 
 </dd>
 <dt id="[]"><a name="[],DynHeaders,Natural"></a><pre><span class="Keyword">proc</span> <span class="Identifier">`[]`</span><span class="Other">(</span><span class="Identifier">q</span><span class="Other">:</span> <span class="Identifier">DynHeaders</span><span class="Other">;</span> <span class="Identifier">i</span><span class="Other">:</span> <span class="Identifier">Natural</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">HBounds</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">inline</span><span class="Other">,</span> <span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></div><span class="Other pragmaend">.}</span></pre></dt>
@@ -1410,7 +1417,7 @@ Yield headers in FIFO order
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2018-05-31 20:31:31 UTC</small>
+        <small>Made with Nim. Generated: 2018-05-31 21:07:53 UTC</small>
       </div>
     </div>
   </div>
