@@ -21,12 +21,14 @@ proc `==`(a, b: openArray[char]): bool {.inline.} =
       return false
     inc i
 
-proc intencode(x: int, n: int, s: var seq[byte]): int =
+type
+  NbitPref = range[1 .. 8]
+
+proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int =
   ## Encode using N-bit prefix.
   ## Return number of octets.
   ## First byte's 2^N bit is set for convenience
   # todo: add option to not set 2^N bit
-  assert n in {1 .. 8}
   result = 1
   let np = 1 shl n - 1
   if x < np:
@@ -42,7 +44,10 @@ proc intencode(x: int, n: int, s: var seq[byte]): int =
   s.add(x.uint8)
   inc result
 
-proc strencode(x: openArray[char], s: var seq[byte], huffman: bool): int =
+proc strencode(
+    x: openArray[char],
+    s: var seq[byte],
+    huffman: bool): Natural =
   result = 0
   if huffman:
     inc(result, intencode(hcencodeLen(x), 7, s))
@@ -68,7 +73,7 @@ type
 
 # proc litencode
 
-proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: int): bool =
+proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: Natural): bool =
   let idyn = i-headersTable.len
   if i < headersTable.len:
     return s == headersTable[i][1]
@@ -112,7 +117,7 @@ proc hencode*(
     dh: var DynHeaders,
     s: var seq[byte],
     store = stoYes,
-    huffman = true): int {.raises: [DynHeadersError].} =
+    huffman = true): Natural {.raises: [DynHeadersError].} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -154,7 +159,7 @@ proc hencode*(
 
 proc signalDynTableSizeUpdate*(
     s: var seq[byte],
-    size: int): int {.raises: [].} =
+    size: Natural): Natural {.raises: [].} =
   # The actual resizing
   # should be done on ACK, and also all
   # headers should be encoded with

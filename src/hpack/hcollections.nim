@@ -22,7 +22,9 @@ template strcopy(x: var string, y: openArray[char], xi, yi, xyLen: int) =
     inc j
     inc k
 
-proc strcmp(x, y: openArray[char], xi, yi, xyLen: int): bool {.inline.} =
+proc strcmp(
+    x, y: openArray[char],
+    xi, yi, xyLen: Natural): bool {.inline.} =
   result = true
   var
     i = 0
@@ -109,9 +111,8 @@ template a(hb: HBounds): int =
 template b(hb: HBounds): int =
   hb.v.b
 
-proc left(q: DynHeaders): int {.inline.} =
+proc left(q: DynHeaders): Natural {.inline.} =
   ## Return available space
-  assert q.filled <= q.s.len
   q.s.len-q.filled
 
 proc pop(q: var DynHeaders): HBounds {.inline.} =
@@ -149,7 +150,7 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   inc(q.filled, nvLen+32)
   assert q.filled <= q.s.len
 
-proc resize*(q: var DynHeaders, strsize: int) {.inline.} =
+proc resize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear the queue.
@@ -193,7 +194,10 @@ proc `$`*(q: DynHeaders): string {.inline.} =
     q.substr(result, initHBounds(hb.v, hb.v))
     result.add("\r\L")
 
-proc cmp*(q: DynHeaders, b: Slice[int], s: openArray[char]): bool {.inline.} =
+proc cmp*(
+    q: DynHeaders,
+    b: Slice[int],
+    s: openArray[char]): bool {.inline.} =
   ## Efficiently compare a header name
   ## or value against a string
   if b.len != s.len:

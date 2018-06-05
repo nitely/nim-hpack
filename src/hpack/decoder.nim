@@ -11,16 +11,16 @@ export
   exceptions
 
 type
+  NbitPref = range[1 .. 8]
   DecodeError* = object of HpackError
 
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)
 
-proc intdecode(s: openArray[byte], n: int, d: var int): int =
+proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int =
   ## Return number of consumed octets.
   ## ``n`` param is the N-bit prefix.
   ## Decoded int is assigned to ``d``
-  assert n in {1 .. 8}
   assert len(s) > 0
   result = 1
   d = 1 shl n - 1
@@ -172,7 +172,7 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
       inc k
     d.b.add(d.s.len)
 
-proc addIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
+proc addIn(dh: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
   ## Add header of dynamic table in
   ## ``i`` position into a decoded string
   let hb = dh[i]
@@ -180,14 +180,14 @@ proc addIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
   d.b.add(d.s.len-hb.v.len)
   d.b.add(d.s.len)
 
-proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: int) {.inline.} =
+proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
   ## Add header's name of dynamic table in
   ## ``i`` position into a decoded string
   let hb = dh[i]
   dh.substr(d.s, initHBounds(hb.n, hb.n))
   d.b.add(d.s.len)
 
-proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
+proc hname(h: DynHeaders, d: var DecodedStr, i: Natural) =
   ## Add header's name of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
@@ -201,7 +201,7 @@ proc hname(h: DynHeaders, d: var DecodedStr, i: int) =
   else:
     raiseDecodeError("dyn header name not found")
 
-proc header(h: DynHeaders, d: var DecodedStr, i: int) =
+proc header(h: DynHeaders, d: var DecodedStr, i: Natural) =
   ## Add header of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
@@ -220,8 +220,8 @@ proc litdecode(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr,
-    np: int,
-    store: static[bool]): int =
+    np: NbitPref,
+    store: static[bool]): Natural =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or
@@ -260,7 +260,7 @@ proc hdecode*(
     s: openArray[byte],
     h: var DynHeaders,
     d: var DecodedStr,
-    dhSize: var int): int
+    dhSize: var int): Natural
     {.raises: [DynHeadersError, DecodeError].} =
   ## Decode a single header.
   ## Return number of consumed octets.
@@ -296,7 +296,7 @@ proc hdecode*(
 proc hdecode*(
     s: openArray[byte],
     h: var DynHeaders,
-    d: var DecodedStr): int
+    d: var DecodedStr): Natural
     {.deprecated, raises: [DynHeadersError, DecodeError].} =
   ## Deprecated, use ``hdecode(openArray[byte],
   ## var DynHeaders, var DecodedStr, var int)`` instead
