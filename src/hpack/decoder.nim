@@ -158,7 +158,7 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int =
   if result > s.len:
     raiseDecodeError("out of bounds")
   if s[0] shr 7 == 1:  # huffman encoded
-    if hcdecode(s[n .. result-1], d.s) == -1:
+    if hcdecode(toOpenArray(s, n, result-1), d.s) == -1:
       raiseDecodeError("huffman error")
     d.b.add(d.s.len)
   else:
@@ -234,27 +234,21 @@ proc litdecode(
   else:
     if result > s.len-1:
       raiseDecodeError("out of bounds")
-    let nh = strdecode(s[result .. s.len-1], d)
+    let nh = strdecode(toOpenArray(s, result, s.len-1), d)
     if result > int.high-nh:
       raiseDecodeError("overflow")
     inc(result, nh)
   if result > s.len-1:
     raiseDecodeError("out of bounds")
-  let nv = strdecode(s[result .. s.len-1], d)
+  let nv = strdecode(toOpenArray(s, result, s.len-1), d)
   if result > int.high-nv:
     raiseDecodeError("overflow")
   inc(result, nv)
   when store:
     let hsl = d[^1]
-    # todo: fixme: https://github.com/nim-lang/Nim/issues/7904
-    if hsl.n.b >= hsl.n.a and hsl.v.b >= hsl.v.a:
-      h.add(
-        toOpenArray(d.s, hsl.n.a, hsl.n.b),
-        toOpenArray(d.s, hsl.v.a, hsl.v.b))
-    else:
-      h.add(
-        d.s[hsl.n.a .. hsl.n.b],
-        d.s[hsl.v.a .. hsl.v.b])
+    h.add(
+      toOpenArray(d.s, hsl.n.a, hsl.n.b),
+      toOpenArray(d.s, hsl.v.a, hsl.v.b))
 
 proc hdecode*(
     s: openArray[byte],
