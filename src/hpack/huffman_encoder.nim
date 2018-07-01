@@ -6,8 +6,7 @@ proc hcencodeLen*(s: openArray[char]): Natural =
   for c in s:
     inc(sLen, hcDecTable[c.ord][1].int)
   result = sLen div 8
-  if sLen mod 8 != 0:
-    inc result
+  result += (sLen mod 8 != 0).int
 
 # todo: align + copy bytes? but chars
 #       are usually < a single byte, so meh
@@ -19,23 +18,21 @@ proc hcencode*(s: openArray[char], e: var seq[byte]): Natural =
     k = 0'u32
   e.setLen(e.len+s.len*4)
   for c in s:
-    assert c.ord < 256
     let
       code = hcDecTable[c.ord]
       co = code[0]
       coLen = code[1]
     k = 1'u32 shl (coLen-1)
     while k > 0'u32:
-      let b = if (co and k) > 0'u32: 1'u8 else: 0'u8
-      e[i] += b shl (7-j)
+      e[i] += ((co and k) > 0'u32).uint8 shl (7-j)
       j = (j+1) and 7
       k = k shr 1
-      i = if j == 0: i+1 else: i
+      i += (j == 0).int
   # padding
   while j > 0:
     e[i] += 1'u8 shl (7-j)
     j = (j+1) and 7
-    i = if j == 0: i+1 else: i
+    i += (j == 0).int
   e.setLen(i)
   result = i - result
 
