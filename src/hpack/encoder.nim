@@ -64,14 +64,21 @@ proc strencode(
       s[i] = c.uint8
       inc i
 
-type
-  HeaderRepr = enum
-    rprIndexed
-    rprIncIndexing
-    rprNoIndexing
-    rprNeverIndexed
-
-# proc litencode
+proc litencode(
+    h, v: openArray[char],
+    s: var seq[byte],
+    hidx: int,
+    np: NbitPref,
+    huffman: bool): int =
+  ## Encode literal header field:
+  ## with incremental indexing,
+  ## without indexing, or
+  ## never indexed.
+  ## Return number of consumed octets
+  result = intencode(hidx+1, np, s)
+  if hidx == -1:
+    inc(result, strencode(h, s, huffman))
+  inc(result, strencode(v, s, huffman))
 
 proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: Natural): bool =
   let idyn = i-headersTable.len
@@ -111,7 +118,6 @@ type
     stoNo
     stoNever
 
-# todo: litencode for DRY-ness
 proc hencode*(
     h, v: openArray[char],
     dh: var DynHeaders,
@@ -126,16 +132,11 @@ proc hencode*(
   case store
   # incremental indexing
   of stoYes:
-    if hidx != -1:
-      result = intencode(hidx+1, 6, s)
-      inc(result, strencode(v, s, huffman))
-    else:
-      result = intencode(0, 6, s)
-      inc(result, strencode(h, s, huffman))
-      inc(result, strencode(v, s, huffman))
+    result = litencode(h, v, s, hidx, 6, huffman)
     dh.add(h, v)
   # without indexing or
   of stoNo:
+    # todo: litencode for DRY-ness, needs clear bit
     if hidx != -1:
       let sLen = s.len
       result = intencode(hidx+1, 4, s)
@@ -149,13 +150,7 @@ proc hencode*(
       inc(result, strencode(v, s, huffman))
   # never indexed
   of stoNever:
-    if hidx != -1:
-      result = intencode(hidx+1, 4, s)
-      inc(result, strencode(v, s, huffman))
-    else:
-      result = intencode(0, 4, s)
-      inc(result, strencode(h, s, huffman))
-      inc(result, strencode(v, s, huffman))
+    result = litencode(h, v, s, hidx, 4, huffman)
 
 proc signalDynTableSizeUpdate*(
     s: var seq[byte],

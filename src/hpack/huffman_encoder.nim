@@ -18,6 +18,7 @@ proc hcencode*(s: openArray[char], e: var seq[byte]): Natural =
     k = 0'u32
   e.setLen(e.len+s.len*4)
   for c in s:
+    assert c.ord < 256
     let
       code = hcDecTable[c.ord]
       co = code[0]
