@@ -17,7 +17,7 @@ type
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)
 
-proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int =
+proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
   ## Return number of consumed octets.
   ## ``n`` param is the N-bit prefix.
   ## Decoded int is assigned to ``d``
@@ -146,7 +146,7 @@ proc `$`*(d: DecodedStr): string {.inline.} =
     result.add(d.s[h.v])
     result.add("\r\L")
 
-proc strdecode(s: openArray[byte], d: var DecodedStr): int =
+proc strdecode(s: openArray[byte], d: var DecodedStr): int {.inline.} =
   ## Decode a literal string.
   ## Return number of consumed octets.
   ## Decoded string is appended to ``d``.
@@ -187,7 +187,7 @@ proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
   dh.substr(d.s, initHBounds(hb.n, hb.n))
   d.b.add(d.s.len)
 
-proc hname(h: DynHeaders, d: var DecodedStr, i: Natural) =
+proc hname(h: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
   ## Add header's name of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
@@ -201,7 +201,7 @@ proc hname(h: DynHeaders, d: var DecodedStr, i: Natural) =
   else:
     raiseDecodeError("dyn header name not found")
 
-proc header(h: DynHeaders, d: var DecodedStr, i: Natural) =
+proc header(h: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
   ## Add header of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
@@ -221,7 +221,7 @@ proc litdecode(
     h: var DynHeaders,
     d: var DecodedStr,
     np: NbitPref,
-    store: static[bool]): Natural =
+    store: static[bool]): Natural {.inline.} =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or

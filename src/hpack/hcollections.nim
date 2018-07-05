@@ -42,7 +42,7 @@ type
     ## Header's name and value boundaries
     n*, v*: Slice[int]
 
-proc initHBounds*(n, v: Slice[int]): HBounds =
+proc initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
   ## Initialize ``HBounds`` with
   ## header's name and value
   HBounds(n: n, v: v)

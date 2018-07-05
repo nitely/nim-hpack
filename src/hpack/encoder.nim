@@ -24,7 +24,7 @@ proc `==`(a, b: openArray[char]): bool {.inline.} =
 type
   NbitPref = range[1 .. 8]
 
-proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int =
+proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   ## Encode using N-bit prefix.
   ## Return number of octets.
   ## First byte's 2^N bit is set for convenience
@@ -47,7 +47,7 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int =
 proc strencode(
     x: openArray[char],
     s: var seq[byte],
-    huffman: bool): Natural =
+    huffman: bool): Natural {.inline.} =
   result = 0
   if huffman:
     inc(result, intencode(hcencodeLen(x), 7, s))
@@ -69,7 +69,7 @@ proc litencode(
     s: var seq[byte],
     hidx: int,
     np: NbitPref,
-    huffman: bool): int =
+    huffman: bool): int {.inline.} =
   ## Encode literal header field:
   ## with incremental indexing,
   ## without indexing, or
@@ -80,7 +80,10 @@ proc litencode(
     inc(result, strencode(h, s, huffman))
   inc(result, strencode(v, s, huffman))
 
-proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: Natural): bool =
+proc cmpTableValue(
+    s: openArray[char],
+    dh: DynHeaders,
+    i: Natural): bool {.inline.} =
   let idyn = i-headersTable.len
   if i < headersTable.len:
     return s == headersTable[i][1]
@@ -89,7 +92,7 @@ proc cmpTableValue(s: openArray[char], dh: DynHeaders, i: Natural): bool =
   else:
     assert false
 
-proc findInTable(h, v: openArray[char], dh: DynHeaders): int =
+proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   ## Find a header name in table
   result = -1
   var first = -1

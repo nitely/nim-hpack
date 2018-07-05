@@ -6,7 +6,7 @@ type
     stSym
     stFlags
 
-proc contains(fs: uint8, f: HcFlag): bool =
+proc contains(fs: uint8, f: HcFlag): bool {.inline.} =
   result = (fs.int and f.ord) != 0
 
 template consume(bits) {.dirty.} =
@@ -19,7 +19,7 @@ template consume(bits) {.dirty.} =
     inc i
     inc result
 
-proc hcdecode*(s: openArray[byte], d: var string): int =
+proc hcdecode*(s: openArray[byte], d: var string): int {.inline.} =
   ## Huffman decoder.
   ## Return length of the decoded string.
   ## Return -1 on error.
