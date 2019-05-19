@@ -11,7 +11,12 @@ export
 type
   DynHeadersError* = object of HpackError
 
-template strcopy(x: var string, y: openArray[char], xi, yi, xyLen: int) =
+# XXX stdlib add(string, openArray[char]) is missing
+proc strcopy(
+  x: var string,
+  y: openArray[char],
+  xi, yi, xyLen: int
+) {.inline.} =
   var
     i = 0
     j = xi
@@ -217,7 +222,6 @@ when isMainModule:
     dh.add("content-encoding", "gzip")
     dh.add("set-cookie", "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
       "max-age=3600; version=1")
-    echo $dh
     doAssert($dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
       "max-age=3600; version=1\r\L" &

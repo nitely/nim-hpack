@@ -10,17 +10,6 @@ export
   hcollections,
   exceptions
 
-proc `==`(a, b: openArray[char]): bool {.inline.} =
-  result = true
-  if a.len != b.len:
-    return false
-  # todo: memcmp?
-  var i = 0
-  while i < a.len:
-    if a[i] != b[i]:
-      return false
-    inc i
-
 type
   NbitPref = range[1 .. 8]
 
