@@ -23,19 +23,10 @@ template strcopy(x: var string, y: openArray[char], xi, yi, xyLen: int) =
     inc k
 
 proc strcmp(
-    x, y: openArray[char],
-    xi, yi, xyLen: Natural): bool {.inline.} =
-  result = true
-  var
-    i = 0
-    j = xi
-    k = yi
-  while i < xyLen:
-    if x[j] != y[k]:
-      return false
-    inc i
-    inc j
-    inc k
+  x, y: openArray[char],
+  xi, yi, xyLen: Natural
+): bool {.inline.} =
+  x.toOpenArray(xi, xi+xyLen-1) == y.toOpenArray(yi, yi+xyLen-1)
 
 type
   HBounds* = object
@@ -206,6 +197,8 @@ proc cmp*(
   result =
     strcmp(s, q.s, 0, b.a, mLen) and
     strcmp(s, q.s, mLen, 0, b.len-mLen)
+    #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
+    #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
 
 when isMainModule:
   block:
