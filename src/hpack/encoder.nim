@@ -10,6 +10,8 @@ export
   hcollections,
   exceptions
 
+template ones(n: untyped): untyped = 1 shl n - 1
+
 type
   NbitPref = range[1 .. 8]
 
@@ -19,7 +21,7 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   ## First byte's 2^N bit is set for convenience
   # todo: add option to not set 2^N bit
   result = 1
-  let np = 1 shl n - 1
+  let np = n.ones
   if x < np:
     s.add(x.uint8 or (1'u8 shl n))
     return
@@ -27,16 +29,17 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   var x = x - np
   var i = 0
   while x >= 1 shl 7:
-    s.add((x and (1 shl 7 - 1)).uint8 or 1'u8 shl 7)
+    s.add((x and 7.ones).uint8 or 1'u8 shl 7)
     x = x shr 7
     inc result
   s.add(x.uint8)
   inc result
 
 proc strencode(
-    x: openArray[char],
-    s: var seq[byte],
-    huffman: bool): Natural {.inline.} =
+  x: openArray[char],
+  s: var seq[byte],
+  huffman: bool
+): Natural {.inline.} =
   result = 0
   if huffman:
     inc(result, intencode(hcencodeLen(x), 7, s))
@@ -44,7 +47,7 @@ proc strencode(
   else:
     let sLen = s.len
     inc(result, intencode(x.len, 7, s))
-    s[sLen] = s[sLen] and (1 shl 7)-1  # clear 2^N bit
+    s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
     # todo: memcopy
     inc(result, x.len)
     var i = s.len
@@ -54,11 +57,12 @@ proc strencode(
       inc i
 
 proc litencode(
-    h, v: openArray[char],
-    s: var seq[byte],
-    hidx: int,
-    np: NbitPref,
-    huffman: bool): int {.inline.} =
+  h, v: openArray[char],
+  s: var seq[byte],
+  hidx: int,
+  np: NbitPref,
+  huffman: bool
+): int {.inline.} =
   ## Encode literal header field:
   ## with incremental indexing,
   ## without indexing, or
@@ -70,9 +74,10 @@ proc litencode(
   inc(result, strencode(v, s, huffman))
 
 proc cmpTableValue(
-    s: openArray[char],
-    dh: DynHeaders,
-    i: Natural): bool {.inline.} =
+  s: openArray[char],
+  dh: DynHeaders,
+  i: Natural
+): bool {.inline.} =
   let idyn = i-headersTable.len
   if i < headersTable.len:
     return s == headersTable[i][1]
@@ -111,11 +116,12 @@ type
     stoNever
 
 proc hencode*(
-    h, v: openArray[char],
-    dh: var DynHeaders,
-    s: var seq[byte],
-    store = stoYes,
-    huffman = true): Natural {.raises: [DynHeadersError].} =
+  h, v: openArray[char],
+  dh: var DynHeaders,
+  s: var seq[byte],
+  store = stoYes,
+  huffman = true
+): Natural {.raises: [DynHeadersError].} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -132,12 +138,12 @@ proc hencode*(
     if hidx != -1:
       let sLen = s.len
       result = intencode(hidx+1, 4, s)
-      s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
+      s[sLen] = s[sLen] and 4.ones  # clear 2^N bit
       inc(result, strencode(v, s, huffman))
     else:
       let sLen = s.len
       result = intencode(0, 4, s)
-      s[sLen] = s[sLen] and (1 shl 4)-1  # clear 2^N bit
+      s[sLen] = s[sLen] and 4.ones  # clear 2^N bit
       inc(result, strencode(h, s, huffman))
       inc(result, strencode(v, s, huffman))
   # never indexed
