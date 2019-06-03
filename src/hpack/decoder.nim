@@ -23,12 +23,12 @@ proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
   ## Decoded int is assigned to ``d``
   assert len(s) > 0
   result = 1
-  d = 1 shl n - 1
+  d = (1 shl n) - 1
   if (s[0].int and d) < d:
     d = s[0].int and d
     return
   var
-    cb = 1 shl 7
+    cb = 1 shl 7  # continue
     sf = int.high
     b, m = 0
   # MSB == 1 means the value
