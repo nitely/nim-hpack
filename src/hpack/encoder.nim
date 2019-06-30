@@ -123,7 +123,7 @@ proc hencode*(
   s: var seq[byte],
   store = stoYes,
   huffman = true
-): Natural {.raises: [DynHeadersError].} =
+): Natural {.discardable, raises: [DynHeadersError].} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):

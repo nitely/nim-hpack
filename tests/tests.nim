@@ -523,7 +523,7 @@ suite "Encoder - Request Examples without Huffman Coding":
         [":path", "/"],
         [":authority", "www.example.com"]]
     for h in hs:
-      discard hencode(
+      hencode(
         h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh == ":authority: www.example.com\r\L"
@@ -541,7 +541,7 @@ suite "Encoder - Request Examples without Huffman Coding":
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
     for h in hs:
-      discard hencode(
+      hencode(
         h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
@@ -565,7 +565,7 @@ suite "Encoder - Request Examples without Huffman Coding":
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
     for h in hs:
-      discard hencode(
+      hencode(
         h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
@@ -590,7 +590,7 @@ suite "Encoder - Request Examples with Huffman Coding":
         [":path", "/"],
         [":authority", "www.example.com"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic)
+      hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh == ":authority: www.example.com\r\L"
 
@@ -607,7 +607,7 @@ suite "Encoder - Request Examples with Huffman Coding":
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic)
+      hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "cache-control: no-cache\r\L" &
@@ -627,7 +627,7 @@ suite "Encoder - Request Examples with Huffman Coding":
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic)
+      hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "custom-key: custom-value\r\L" &
@@ -656,7 +656,7 @@ suite "Encoder - Response Examples without Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic, huffman = false)
+      hencode(h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       "location: https://www.example.com\r\L" &
@@ -675,7 +675,7 @@ suite "Encoder - Response Examples without Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic, huffman = false)
+      hencode(h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       ":status: 307\r\L" &
@@ -709,7 +709,7 @@ suite "Encoder - Response Examples without Huffman Coding":
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic, huffman = false)
+      hencode(h[0], h[1], dh, ic, huffman = false)
     check ic == expected
     check $dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
@@ -737,7 +737,7 @@ suite "Encoder - Response Examples with Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic)
+      hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "location: https://www.example.com\r\L" &
@@ -756,7 +756,7 @@ suite "Encoder - Response Examples with Huffman Coding":
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic)
+      hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       ":status: 307\r\L" &
@@ -789,7 +789,7 @@ suite "Encoder - Response Examples with Huffman Coding":
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
     for h in hs:
-      discard hencode(h[0], h[1], dh, ic)
+      hencode(h[0], h[1], dh, ic)
     check ic == expected
     check $dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
@@ -801,7 +801,7 @@ suite "Uncategorized tests":
   test "Empty header value":
     var dh = initDynHeaders(4096, 16)
     var ic = newSeq[byte]()
-    discard hencode("pragma", "", dh, ic, huffman = false)
+    hencode("pragma", "", dh, ic, huffman = false)
     var d = initDecodedStr()
     dh.reset()
     hdecodeAll(ic, dh, d)
@@ -811,7 +811,7 @@ suite "Uncategorized tests":
   test "Empty header value huffman":
     var dh = initDynHeaders(4096, 16)
     var ic = newSeq[byte]()
-    discard hencode("pragma", "", dh, ic, huffman = true)
+    hencode("pragma", "", dh, ic, huffman = true)
     var d = initDecodedStr()
     dh.reset()
     hdecodeAll(ic, dh, d)
