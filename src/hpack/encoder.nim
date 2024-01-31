@@ -153,14 +153,24 @@ proc hencode*(
     result = litencode(h, v, s, hidx, 4, huffman)
 
 proc signalDynTableSizeUpdate*(
-    s: var seq[byte],
-    size: Natural): Natural {.raises: [].} =
-  # The actual resizing
-  # should be done on ACK, and also all
-  # headers should be encoded with
-  # ``stoNo`` until then,
-  # but the spec does not spell this
+  s: var seq[byte],
+  size: Natural
+): Natural {.discardable, raises: [].} =
+  ## Add dynamic table size update
+  ## field to the seq of bytes
   result = intencode(size, 5, s)
+
+func applyDynTableSizeUpdates*(
+  dh: var DynHeaders,
+  s: var seq[byte]
+): Natural {.discardable, raises: [].} =
+  doAssert dh.minResize <= dh.finalResize
+  result = 0
+  if dh.minResize != dh.initialSize:
+    result += signalDynTableSizeUpdate(s, dh.minResize)
+  if dh.finalResize != dh.minResize:
+    result += signalDynTableSizeUpdate(s, dh.finalResize)
+  dh.resetResize()
 
 when isMainModule:
   import decoder

@@ -282,8 +282,11 @@ proc hdecode*(
     result = litdecode(s, h, d, 4, false)
     return
   # dyn table size update
+  # https://www.rfc-editor.org/rfc/rfc7541.html#section-6.3
   if s[0] shr 5 == 1:
     result = intdecode(s, 5, dhSize)
+    if dhSize > h.maxSize:
+      raiseDecodeError("dyn table size update exceeds the max size")
     return
   raiseDecodeError("unknown octet prefix")
 

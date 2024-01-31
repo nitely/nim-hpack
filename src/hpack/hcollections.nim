@@ -60,6 +60,7 @@ type
     pos, filled: int
     b: seq[HBounds]
     head, tail, length: int
+    maxSize*, initialSize, minResize, finalResize: int
 
 proc initDynHeaders*(strsize, qsize: Natural): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
@@ -78,7 +79,11 @@ proc initDynHeaders*(strsize, qsize: Natural): DynHeaders {.inline.} =
     b: newSeq[HBounds](qsize),
     head: qsize-1,
     tail: 0,
-    length: 0)
+    length: 0,
+    maxSize: strsize,
+    initialSize: strsize,
+    minReSize: strsize,
+    finalResize: strsize)
 
 proc len*(q: DynHeaders): int {.inline.} =
   ## Number of headers
@@ -150,6 +155,8 @@ proc resize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear the queue.
+  q.minResize = min(q.minResize, strsize)
+  q.finalResize = strsize
   q.s.setLen(strsize)
   while strsize < q.filled:
     discard q.pop()
@@ -204,6 +211,19 @@ proc cmp*(
     strcmp(s, q.s, mLen, 0, b.len-mLen)
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
+
+func initialSize*(q: DynHeaders): int =
+  q.initialSize
+
+func minResize*(q: DynHeaders): int =
+  q.minResize
+
+func finalResize*(q: DynHeaders): int =
+  q.finalResize
+
+func resetResize*(q: var DynHeaders) =
+  q.minResize = q.finalResize
+  q.initialSize = q.finalResize
 
 when isMainModule:
   block:
