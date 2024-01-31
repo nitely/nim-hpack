@@ -212,16 +212,18 @@ proc cmp*(
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
 
-func initialSize*(q: DynHeaders): int =
-  q.initialSize
-
 func minResize*(q: DynHeaders): int =
   q.minResize
 
 func finalResize*(q: DynHeaders): int =
   q.finalResize
 
-func resetResize*(q: var DynHeaders) =
+func hasResized*(dh: DynHeaders): bool =
+  result =
+    dh.initialSize != dh.minResize or
+    dh.minResize != dh.finalResize
+
+func clearLastResize*(q: var DynHeaders) =
   q.minResize = q.finalResize
   q.initialSize = q.finalResize
 

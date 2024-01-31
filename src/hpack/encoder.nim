@@ -160,17 +160,18 @@ proc signalDynTableSizeUpdate*(
   ## field to the seq of bytes
   result = intencode(size, 5, s)
 
-func applyDynTableSizeUpdates*(
+func encodeLastResize*(
   dh: var DynHeaders,
   s: var seq[byte]
 ): Natural {.discardable, raises: [].} =
+  ## Add last dynamic table resize signal
+  ## to ``s``
   doAssert dh.minResize <= dh.finalResize
   result = 0
-  if dh.minResize != dh.initialSize:
+  if dh.hasResized():
     result += signalDynTableSizeUpdate(s, dh.minResize)
   if dh.finalResize != dh.minResize:
     result += signalDynTableSizeUpdate(s, dh.finalResize)
-  dh.resetResize()
 
 when isMainModule:
   import decoder
