@@ -5,7 +5,7 @@ Based on [rfc7541](https://tools.ietf.org/html/rfc7541).
 
 ## Compatibility
 
-> nim >= 0.19
+> Nim +2
 
 ## Install
 
@@ -35,7 +35,7 @@ let req1 = @[
   0x8286'u16, 0x8441, 0x8cf1, 0xe3c2,
   0xe5f2, 0x3a6b, 0xa0ab, 0x90f4].toBytes
 var ds = initDecodedStr()
-var dh = initDynHeaders(256, 16)
+var dh = initDynHeaders(256)
 assert hdecodeAll(req1, dh, ds) == req1.len
 assert($ds ==
   ":method: GET\r\L" &
@@ -72,7 +72,7 @@ proc toBytes(s: seq[uint16]): seq[byte] =
 
 # First response
 var resp = newSeq[byte]()
-var dh = initDynHeaders(256, 16)
+var dh = initDynHeaders(256)
 hencode(":method", "GET", dh, resp)
 hencode(":scheme", "http", dh, resp)
 hencode(":path", "/", dh, resp)
