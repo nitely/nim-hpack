@@ -53,7 +53,7 @@ type
     s: string
     pos, filled: int
     bounds: Deque[HBounds]
-    maxSize*, initialSize, minSetLen, finalSetLen: int
+    maxSize*, initialSize, minSetSize: int
 
 proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
@@ -66,8 +66,7 @@ proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
     bounds: initDeque[HBounds](),
     maxSize: strsize,
     initialSize: strsize,
-    minSetLen: strsize,
-    finalSetLen: strsize)
+    minSetSize: strsize)
 
 proc len*(q: DynHeaders): int {.inline.} =
   q.bounds.len
@@ -77,8 +76,7 @@ proc clear*(q: var DynHeaders) {.inline.} =
   q.pos = 0
   q.filled = 0
   q.bounds.clear()
-  q.minSetLen = 0
-  q.finalSetLen = 0
+  q.minSetSize = 0
 
 proc reset*(q: var DynHeaders) {.deprecated.} =
   ## Deprecated, use ``clear()`` instead
@@ -132,12 +130,11 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.s.len
 
-proc setLen*(q: var DynHeaders, strsize: Natural) {.inline.} =
+proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear the queue.
-  q.minSetLen = min(q.minSetLen, strsize)
-  q.finalSetLen = strsize
+  q.minSetSize = min(q.minSetSize, strsize)
   q.s.setLen(strsize)
   while strsize < q.filled:
     discard q.pop()
@@ -186,20 +183,23 @@ proc cmp*(
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
 
-func minSetLen*(q: DynHeaders): int =
-  q.minSetLen
+func minSetSize*(q: DynHeaders): int =
+  q.minSetSize
 
-func finalSetLen*(q: DynHeaders): int =
-  q.finalSetLen
+func finalSetSize*(q: DynHeaders): int =
+  q.s.len
 
-func hasResized*(dh: DynHeaders): bool =
+func hasResized*(q: DynHeaders): bool =
+  # we only care about len decrease (entry eviction)
+  # and final len. If it was increased and restored
+  # we don't care, it's a no-op
   result =
-    dh.initialSize != dh.minSetLen or
-    dh.minSetLen != dh.finalSetLen
+    q.initialSize != q.minSetSize or
+    q.minSetSize != q.finalSetSize
 
 func clearLastResize*(q: var DynHeaders) =
-  q.minSetLen = q.finalSetLen
-  q.initialSize = q.finalSetLen
+  q.minSetSize = q.finalSetSize
+  q.initialSize = q.finalSetSize
 
 when isMainModule:
   block:
@@ -296,14 +296,14 @@ when isMainModule:
     dh.add("qwe", "qwe")
     dh.add("zxc", "zxc")
     doAssert dh.len == 3
-    dh.setLen(100)
+    dh.setSize(100)
     doAssert dh.len == 2
     doAssert $dh ==
       "zxc: zxc\r\L" &
       "qwe: qwe\r\L"
-    dh.setLen(0)
+    dh.setSize(0)
     doAssert dh.len == 0
     dh.add("zxc", "zxc")
     doAssert dh.len == 0
-    dh.setLen(256)
+    dh.setSize(256)
     doAssert dh.len == 0

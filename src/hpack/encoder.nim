@@ -166,12 +166,12 @@ func encodeLastResize*(
 ): Natural {.discardable, raises: [].} =
   ## Add last dynamic table resize signal
   ## to ``s``
-  doAssert dh.minSetLen <= dh.finalSetLen
+  doAssert dh.minSetSize <= dh.finalSetSize
   result = 0
   if dh.hasResized():
-    result += signalDynTableSizeUpdate(s, dh.minSetLen)
-  if dh.finalSetLen != dh.minSetLen:
-    result += signalDynTableSizeUpdate(s, dh.finalSetLen)
+    result += signalDynTableSizeUpdate(s, dh.minSetSize)
+  if dh.finalSetSize != dh.minSetSize:
+    result += signalDynTableSizeUpdate(s, dh.finalSetSize)
 
 when isMainModule:
   import decoder

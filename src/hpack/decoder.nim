@@ -325,7 +325,7 @@ proc hdecodeAll*(
   while i < s.len:
     inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
     if dhSize > -1:
-      h.setLen dhSize
+      h.setSize dhSize
   assert i == s.len
 
 when isMainModule:
