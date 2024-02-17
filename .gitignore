@@ -10,3 +10,4 @@ src/hpack/hcollections
 tests/tests
 tests/sometests
 bin
+docs
