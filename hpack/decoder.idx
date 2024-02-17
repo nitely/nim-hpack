@@ -1,0 +1,20 @@
+nimTitle	decoder	hpack/decoder.html	module src/hpack/decoder		0
+nim	DecodeError	hpack/decoder.html#DecodeError	object DecodeError		15
+nim	DecodedSlice	hpack/decoder.html#DecodedSlice	object DecodedSlice		53
+nim	DecodedStr	hpack/decoder.html#DecodedStr	object DecodedStr		61
+nim	initDecodedStr	hpack/decoder.html#initDecodedStr	proc initDecodedStr(): DecodedStr		69
+nim	len	hpack/decoder.html#len,DecodedStr	proc len(d: DecodedStr): int		73
+nim	`[]`	hpack/decoder.html#[],DecodedStr,int	proc `[]`(d: DecodedStr; i: int): DecodedSlice		78
+nim	`[]`	hpack/decoder.html#[],DecodedStr,BackwardsIndex	proc `[]`(d: DecodedStr; i: BackwardsIndex): DecodedSlice		88
+nim	clear	hpack/decoder.html#clear,DecodedStr	proc clear(d: var DecodedStr)		98
+nim	reset	hpack/decoder.html#reset,DecodedStr	proc reset(d: var DecodedStr)		103
+nim	add	hpack/decoder.html#add,DecodedStr,string	proc add(d: var DecodedStr; s: string)		107
+nim	items	hpack/decoder.html#items.i,DecodedStr	iterator items(d: DecodedStr): DecodedSlice		118
+nim	`$`	hpack/decoder.html#$,DecodedStr	proc `$`(d: DecodedStr): string		140
+nim	hdecode	hpack/decoder.html#hdecode,openArray[byte],DynHeaders,DecodedStr,int	proc hdecode(s: openArray[byte]; h: var DynHeaders; d: var DecodedStr;\n        dhSize: var int): Natural		253
+nim	hdecode	hpack/decoder.html#hdecode,openArray[byte],DynHeaders,DecodedStr	proc hdecode(s: openArray[byte]; h: var DynHeaders; d: var DecodedStr): Natural		293
+nim	hdecodeAll	hpack/decoder.html#hdecodeAll,openArray[byte],DynHeaders,DecodedStr,int	proc hdecodeAll(s: openArray[byte]; h: var DynHeaders; d: var DecodedStr;\n           dhSize: var int)		303
+nim	hdecodeAll	hpack/decoder.html#hdecodeAll,openArray[byte],DynHeaders,DecodedStr	proc hdecodeAll(s: openArray[byte]; h: var DynHeaders; d: var DecodedStr)		314
+nimgrp	hdecode	hpack/decoder.html#hdecode-procs-all	proc		253
+nimgrp	hdecodeall	hpack/decoder.html#hdecodeAll-procs-all	proc		303
+nimgrp	[]	hpack/decoder.html#[]-procs-all	proc		78

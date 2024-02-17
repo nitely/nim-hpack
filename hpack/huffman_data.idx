@@ -1,0 +1,7 @@
+nimTitle	huffman_data	hpack/huffman_data.html	module src/hpack/huffman_data		0
+nim	hcfSym	hpack/huffman_data.html#hcfSym	HcFlag.hcfSym		4
+nim	hcfContinue	hpack/huffman_data.html#hcfContinue	HcFlag.hcfContinue		4
+nim	hcfDone	hpack/huffman_data.html#hcfDone	HcFlag.hcfDone		4
+nim	HcFlag	hpack/huffman_data.html#HcFlag	enum HcFlag		4
+nim	hcTable	hpack/huffman_data.html#hcTable	const hcTable		9
+nim	hcDecTable	hpack/huffman_data.html#hcDecTable	const hcDecTable		4619
