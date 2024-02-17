@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  test:
+    name: Nim ${{ matrix.nim }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        nim: [2.0.0]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run Tests
+      run: |
+        docker pull nimlang/nim:${{ matrix.nim }}
+        docker run --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble test"
+  docs:
+    name: Nim ${{ matrix.nim }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        nim: [2.0.0]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build docs
+      if: matrix.nim == '2.0.0'
+      run: |
+        docker pull nimlang/nim:${{ matrix.nim }}
+        docker run --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble docs"
+    - name: Deploy docs
+      # to view docs on your own fork: push a gh-pages branch on your fork,
+      # enable gh-pages in your fork
+      # and remove `github.ref == 'refs/heads/master'` below
+      if: |
+        github.event_name == 'push' && github.ref == 'refs/heads/master' &&
+        matrix.nim == '2.0.0'
+      uses: crazy-max/ghaction-github-pages@v1
+      with:
+        build_dir: docs
+        target_branch: gh-pages
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
