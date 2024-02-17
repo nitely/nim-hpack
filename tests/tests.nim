@@ -829,3 +829,83 @@ suite "Uncategorized tests":
     check dhSize == 256
     check $d == ""
     check $dh == ""
+  
+  test "encodeLastResize no resize":
+    var ic = newSeq[byte]()
+    var dh = initDynHeaders(4096)
+    check encodeLastResize(dh, ic) == 0
+    check ic.len == 0
+
+  test "encodeLastResize resize to 0":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    var ic2 = newSeq[byte]()
+    let expected = signalDynTableSizeUpdate(ic2, 0)
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == expected
+    check ic == ic2
+
+  test "encodeLastResize resize to 0 and 4096":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    dh.setSize 4096
+    var ic2 = newSeq[byte]()
+    let expected =
+      signalDynTableSizeUpdate(ic2, 0) +
+      signalDynTableSizeUpdate(ic2, 4096)
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == expected
+    check ic == ic2
+
+  test "encodeLastResize multi resizes":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    dh.setSize 123
+    dh.setSize 1024
+    dh.setSize 2048
+    dh.setSize 4096
+    var ic2 = newSeq[byte]()
+    let expected =
+      signalDynTableSizeUpdate(ic2, 0) +
+      signalDynTableSizeUpdate(ic2, 4096)
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == expected
+    check ic == ic2
+
+  test "clearLastResize":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == 1
+    check ic.len == 1
+    check encodeLastResize(dh, ic) == 1
+    check ic.len == 2
+    check encodeLastResize(dh, ic) == 1
+    check ic.len == 3
+    dh.clearLastResize()
+    ic.setLen 0
+    check encodeLastResize(dh, ic) == 0
+    check ic.len == 0
+
+  test "Encoded update signal":
+    # encoder
+    var encDh = initDynHeaders(4096)
+    encDh.setSize 1024
+    var ic = newSeq[byte]()
+    discard encodeLastResize(encDh, ic)
+    # decoder
+    var decDh = initDynHeaders(4096)
+    check decDh.finalSetSize == 4096
+    var d = initDecodedStr()
+    hdecodeAll(ic, decDh, d)
+    check decDh.finalSetSize == 1024
+
+  test "Encoded update signal tries to exceed the max size":
+    var encDh = initDynHeaders(4096)
+    encDh.setSize 100_000
+    var ic = newSeq[byte]()
+    discard encodeLastResize(encDh, ic)
+    var decDh = initDynHeaders(4096)
+    var d = initDecodedStr()
+    doAssertRaises(DecodeError):
+      hdecodeAll(ic, decDh, d)
