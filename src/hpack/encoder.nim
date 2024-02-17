@@ -28,7 +28,6 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
     return
   s.add(n.ones or (1'u8 shl n))
   var x = x.uint - n.ones
-  var i = 0
   # leading 1-bit means continuation
   while x > 7.ones.uint:
     s.add((x and 7.ones).uint8 or 1'u8 shl 7)
@@ -123,7 +122,7 @@ proc hencode*(
   s: var seq[byte],
   store = stoYes,
   huffman = true
-): Natural {.discardable, raises: [DynHeadersError].} =
+): Natural {.discardable, raises: [].} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):

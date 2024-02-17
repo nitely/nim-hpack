@@ -255,7 +255,7 @@ proc hdecode*(
     h: var DynHeaders,
     d: var DecodedStr,
     dhSize: var int): Natural
-    {.raises: [DynHeadersError, DecodeError].} =
+    {.raises: [DecodeError].} =
   ## Decode a single header.
   ## Return number of consumed octets.
   ## ``s`` bytes sequence must not be empty.
