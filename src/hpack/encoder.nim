@@ -24,17 +24,17 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   # todo: add option to not set 2^N bit
   result = 1
   if x.uint < n.ones:
-    s.add(cast[uint8](x) or (1'u8 shl n))
+    s.add(x.uint8 or (1'u8 shl n))
     return
   s.add(n.ones or (1'u8 shl n))
   var x = x.uint - n.ones
   var i = 0
   # leading 1-bit means continuation
   while x > 7.ones.uint:
-    s.add(cast[uint8](x and 7.ones) or 1'u8 shl 7)
+    s.add((x and 7.ones).uint8 or 1'u8 shl 7)
     x = x shr 7
     inc result
-  s.add(cast[uint8](x))
+  s.add x.uint8
   inc result
 
 proc strencode(
