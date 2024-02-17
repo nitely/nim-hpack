@@ -3,6 +3,8 @@
 An implementation of HPACK (Header Compression for HTTP/2).
 Based on [rfc7541](https://tools.ietf.org/html/rfc7541).
 
+This lib is used by https://github.com/nitely/nim-hyperx
+
 ## Compatibility
 
 > Nim +2
