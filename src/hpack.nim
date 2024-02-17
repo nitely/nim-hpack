@@ -2,9 +2,9 @@
 ## HPACK (Header Compression for HTTP/2)
 
 import
-  hpack/encoder,
-  hpack/decoder,
-  hpack/hcollections
+  ./hpack/encoder,
+  ./hpack/decoder,
+  ./hpack/hcollections
 
 export
   encoder,

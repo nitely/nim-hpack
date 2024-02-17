@@ -24,17 +24,17 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   # todo: add option to not set 2^N bit
   result = 1
   if x.uint < n.ones:
-    s.add(cast[uint8](x) or (1'u8 shl n))
+    s.add(x.uint8 or (1'u8 shl n))
     return
   s.add(n.ones or (1'u8 shl n))
   var x = x.uint - n.ones
   var i = 0
   # leading 1-bit means continuation
   while x > 7.ones.uint:
-    s.add(cast[uint8](x and 7.ones) or 1'u8 shl 7)
+    s.add((x and 7.ones).uint8 or 1'u8 shl 7)
     x = x shr 7
     inc result
-  s.add(cast[uint8](x))
+  s.add x.uint8
   inc result
 
 proc strencode(
@@ -153,14 +153,25 @@ proc hencode*(
     result = litencode(h, v, s, hidx, 4, huffman)
 
 proc signalDynTableSizeUpdate*(
-    s: var seq[byte],
-    size: Natural): Natural {.raises: [].} =
-  # The actual resizing
-  # should be done on ACK, and also all
-  # headers should be encoded with
-  # ``stoNo`` until then,
-  # but the spec does not spell this
+  s: var seq[byte],
+  size: Natural
+): Natural {.discardable, raises: [].} =
+  ## Add dynamic table size update
+  ## field to the seq of bytes
   result = intencode(size, 5, s)
+
+func encodeLastResize*(
+  dh: var DynHeaders,
+  s: var seq[byte]
+): Natural {.discardable, raises: [].} =
+  ## Add last dynamic table resize signal
+  ## to ``s``
+  doAssert dh.minSetSize <= dh.finalSetSize
+  result = 0
+  if dh.hasResized():
+    result += signalDynTableSizeUpdate(s, dh.minSetSize)
+  if dh.finalSetSize != dh.minSetSize:
+    result += signalDynTableSizeUpdate(s, dh.finalSetSize)
 
 when isMainModule:
   import decoder

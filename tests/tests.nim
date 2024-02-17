@@ -53,7 +53,7 @@ suite "Decoder - Test Header Field Representation Examples":
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
       d = initDecodedStr()
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
     check hdecode(ic, dh, d) == ic.len
     var i = 0
     for h in d:
@@ -70,7 +70,7 @@ suite "Decoder - Test Header Field Representation Examples":
         0x040c'u16, 0x2f73, 0x616d,
         0x706c, 0x652f, 0x7061, 0x7468].toBytes
       d = initDecodedStr()
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
     check hdecode(ic, dh, d) == ic.len
     var i = 0
     for h in d:
@@ -87,7 +87,7 @@ suite "Decoder - Test Header Field Representation Examples":
     ic.add(byte 0x74'u8)
     var
       d = initDecodedStr()
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
     check hdecode(ic, dh, d) == ic.len
     var i = 0
     for h in d:
@@ -101,7 +101,7 @@ suite "Decoder - Test Header Field Representation Examples":
     var
       ic = @[byte 0x82'u8]
       d = initDecodedStr()
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
     check hdecode(ic, dh, d) == ic.len
     var i = 0
     for h in d:
@@ -112,7 +112,7 @@ suite "Decoder - Test Header Field Representation Examples":
     check dh.len == 0
 
 suite "Decoder - Request Examples without Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Request":
     var
@@ -189,7 +189,7 @@ suite "Decoder - Request Examples without Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Decoder - Request Examples with Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Request":
     var ic = @[
@@ -264,7 +264,7 @@ suite "Decoder - Request Examples with Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Decoder - Response Examples without Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Response":
     var
@@ -362,7 +362,7 @@ suite "Decoder - Response Examples without Huffman Coding":
       "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L"
 
 suite "Decoder - Response Examples with Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Response":
     var
@@ -458,7 +458,7 @@ suite "Decoder - Response Examples with Huffman Coding":
 suite "Encoder - Header Field Representation Examples":
   test "Literal Header Field with Indexing":
     var
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
       ic = newSeq[byte]()
       expected = @[
         0x400a'u16, 0x6375, 0x7374, 0x6f6d,
@@ -471,7 +471,7 @@ suite "Encoder - Header Field Representation Examples":
 
   test "Literal Header Field without Indexing":
     var
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
       ic = newSeq[byte]()
       expected = @[
         0x040c'u16, 0x2f73, 0x616d,
@@ -484,7 +484,7 @@ suite "Encoder - Header Field Representation Examples":
 
   test "Literal Header Field Never Indexed":
     var
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
       ic = newSeq[byte]()
       expected = @[
         0x1008'u16, 0x7061, 0x7373, 0x776f,
@@ -498,7 +498,7 @@ suite "Encoder - Header Field Representation Examples":
 
   test "Indexed Header Field":
     var
-      dh = initDynHeaders(256, 16)
+      dh = initDynHeaders(256)
       ic = newSeq[byte]()
       expected = @[byte 0x82'u8]
     doAssert hencode(
@@ -508,7 +508,7 @@ suite "Encoder - Header Field Representation Examples":
     doAssert dh.len == 0
 
 suite "Encoder - Request Examples without Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Request":
     var
@@ -574,7 +574,7 @@ suite "Encoder - Request Examples without Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Encoder - Request Examples with Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Request":
     var
@@ -635,7 +635,7 @@ suite "Encoder - Request Examples with Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Encoder - Response Examples without Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Response":
     var
@@ -718,7 +718,7 @@ suite "Encoder - Response Examples without Huffman Coding":
       "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L"
 
 suite "Encoder - Response Examples with Huffman Coding":
-  var dh = initDynHeaders(256, 16)
+  var dh = initDynHeaders(256)
 
   test "First Response":
     var
@@ -799,17 +799,17 @@ suite "Encoder - Response Examples with Huffman Coding":
 
 suite "Uncategorized tests":
   test "Empty header value":
-    var dh = initDynHeaders(4096, 16)
+    var dh = initDynHeaders(4096)
     var ic = newSeq[byte]()
     hencode("pragma", "", dh, ic, huffman = false)
     var d = initDecodedStr()
     dh.reset()
     hdecodeAll(ic, dh, d)
-    check $d == "pragma: \r\L"
-    check $dh == "pragma: \r\L"
+    check $d == "pragma: \r\n"
+    check $dh == "pragma: \r\n"
 
   test "Empty header value huffman":
-    var dh = initDynHeaders(4096, 16)
+    var dh = initDynHeaders(4096)
     var ic = newSeq[byte]()
     hencode("pragma", "", dh, ic, huffman = true)
     var d = initDecodedStr()
@@ -823,9 +823,89 @@ suite "Uncategorized tests":
     check signalDynTableSizeUpdate(ic, 256) == 3
     check ic.len == 3
     var d = initDecodedStr()
-    var dh = initDynHeaders(4096, 1024)
+    var dh = initDynHeaders(4096)
     var dhSize = 0
     hdecodeAll(ic, dh, d, dhSize)
     check dhSize == 256
     check $d == ""
     check $dh == ""
+  
+  test "encodeLastResize no resize":
+    var ic = newSeq[byte]()
+    var dh = initDynHeaders(4096)
+    check encodeLastResize(dh, ic) == 0
+    check ic.len == 0
+
+  test "encodeLastResize resize to 0":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    var ic2 = newSeq[byte]()
+    let expected = signalDynTableSizeUpdate(ic2, 0)
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == expected
+    check ic == ic2
+
+  test "encodeLastResize resize to 0 and 4096":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    dh.setSize 4096
+    var ic2 = newSeq[byte]()
+    let expected =
+      signalDynTableSizeUpdate(ic2, 0) +
+      signalDynTableSizeUpdate(ic2, 4096)
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == expected
+    check ic == ic2
+
+  test "encodeLastResize multi resizes":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    dh.setSize 123
+    dh.setSize 1024
+    dh.setSize 2048
+    dh.setSize 4096
+    var ic2 = newSeq[byte]()
+    let expected =
+      signalDynTableSizeUpdate(ic2, 0) +
+      signalDynTableSizeUpdate(ic2, 4096)
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == expected
+    check ic == ic2
+
+  test "clearLastResize":
+    var dh = initDynHeaders(4096)
+    dh.setSize 0
+    var ic = newSeq[byte]()
+    check encodeLastResize(dh, ic) == 1
+    check ic.len == 1
+    check encodeLastResize(dh, ic) == 1
+    check ic.len == 2
+    check encodeLastResize(dh, ic) == 1
+    check ic.len == 3
+    dh.clearLastResize()
+    ic.setLen 0
+    check encodeLastResize(dh, ic) == 0
+    check ic.len == 0
+
+  test "Encoded update signal":
+    # encoder
+    var encDh = initDynHeaders(4096)
+    encDh.setSize 1024
+    var ic = newSeq[byte]()
+    discard encodeLastResize(encDh, ic)
+    # decoder
+    var decDh = initDynHeaders(4096)
+    check decDh.finalSetSize == 4096
+    var d = initDecodedStr()
+    hdecodeAll(ic, decDh, d)
+    check decDh.finalSetSize == 1024
+
+  test "Encoded update signal tries to exceed the max size":
+    var encDh = initDynHeaders(4096)
+    encDh.setSize 100_000
+    var ic = newSeq[byte]()
+    discard encodeLastResize(encDh, ic)
+    var decDh = initDynHeaders(4096)
+    var d = initDecodedStr()
+    doAssertRaises(DecodeError):
+      hdecodeAll(ic, decDh, d)

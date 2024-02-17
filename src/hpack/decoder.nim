@@ -282,8 +282,11 @@ proc hdecode*(
     result = litdecode(s, h, d, 4, false)
     return
   # dyn table size update
+  # https://www.rfc-editor.org/rfc/rfc7541.html#section-6.3
   if s[0] shr 5 == 1:
     result = intdecode(s, 5, dhSize)
+    if dhSize > h.maxSize:
+      raiseDecodeError("dyn table size update exceeds the max size")
     return
   raiseDecodeError("unknown octet prefix")
 
@@ -302,28 +305,28 @@ proc hdecodeAll*(
     h: var DynHeaders,
     d: var DecodedStr,
     dhSize: var int)
-    {.raises: [DynHeadersError, DecodeError].} =
-  ## Decode all headers from the blob of bytes
-  ## ``s`` and stores it into a decoded string``d``.
-  ## The dynamic headers are stored into ``h``
-  ## to decode the next message.
-  ## The dynamic table size update is stored
-  ## into ``dhSize``, default to ``-1``
-  ## if there's no update
+    {.deprecated, raises: [DynHeadersError, DecodeError].} =
   var i = 0
   while i < s.len:
     inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
   assert i == s.len
 
 proc hdecodeAll*(
-    s: openArray[byte],
-    h: var DynHeaders,
-    d: var DecodedStr)
-    {.deprecated, raises: [DynHeadersError, DecodeError].} =
-  ## Deprecated, use ``hdecodeAll(openArray[byte],
-  ## var DynHeaders, var DecodedStr, var int)`` instead
+  s: openArray[byte],
+  h: var DynHeaders,
+  d: var DecodedStr
+) {.raises: [DynHeadersError, DecodeError].} =
+  ## Decode all headers from the blob of bytes
+  ## ``s`` and stores it into a decoded string``d``.
+  ## The dynamic headers are stored into ``h``
+  ## to decode the next message.
   var dhSize = 0
-  hdecodeAll(s, h, d, dhSize)
+  var i = 0
+  while i < s.len:
+    inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
+    if dhSize > -1:
+      h.setSize dhSize
+  assert i == s.len
 
 when isMainModule:
   block:
