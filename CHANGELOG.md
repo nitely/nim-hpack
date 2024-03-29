@@ -1,3 +1,7 @@
+# v0.3.0
+
+*  Improve resize & remove number of headers limit #2
+
 # v0.2.0
 
 * Use `Natural` instead of `int` where possible
