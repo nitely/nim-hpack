@@ -85,7 +85,7 @@ proc cmpTableValue(
   elif idyn < dh.len:
     return cmp(dh, dh[idyn].v, s)
   else:
-    assert false
+    doAssert false
 
 proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   ## Find a header name in table

@@ -20,6 +20,7 @@ task test, "Test":
   exec "nim c -r src/hpack/decoder.nim"
   exec "nim c -r src/hpack/huffman_decoder.nim"
   exec "nim c -r tests/tests.nim"
+  exec "nim c -r tests/testdata2.nim"
 
 task docs, "Docs":
   exec "nim doc2 -o:./docs --project ./src/hpack.nim"

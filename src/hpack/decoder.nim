@@ -184,7 +184,7 @@ proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
   ## Add header's name of dynamic table in
   ## ``i`` position into a decoded string
   let hb = dh[i]
-  dh.substr(d.s, initHBounds(hb.n, hb.n))
+  dh.substr(d.s, hb.n)
   d.b.add(d.s.len)
 
 proc hname(h: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =

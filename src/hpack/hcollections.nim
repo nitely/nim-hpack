@@ -89,7 +89,7 @@ template a(hb: HBounds): int =
   hb.n.a
 
 template b(hb: HBounds): int =
-  hb.v.b
+  hb.n.a+hb.n.len+hb.v.len-1
 
 template len(hb: HBounds): int =
   hb.n.len+hb.v.len
@@ -115,18 +115,17 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
     discard q.pop()
   if nvLen > q.s.len-32:
     return
-  q.bounds.addFirst HBounds(
-    n: q.pos .. q.pos+n.len-1,
-    v: q.pos+n.len .. q.pos+nvLen-1
-  )
+  let hbn = q.pos .. q.pos+n.len-1
   let nLen = min(n.len, q.s.len-q.pos)
   strcopy(q.s, n, q.pos, 0, nLen)
   strcopy(q.s, n, 0, nLen, n.len-nLen)
   q.pos = (q.pos+n.len) mod q.s.len
+  let hbv = q.pos .. q.pos+v.len-1
   let vLen = min(v.len, q.s.len-q.pos)
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
   q.pos = (q.pos+v.len) mod q.s.len
+  q.bounds.addFirst HBounds(n: hbn, v: hbv)
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.s.len
 
@@ -149,7 +148,7 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
 
 proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
   ## Append a header name and value to ``s``
-  assert hb.b+1 >= hb.a
+  doAssert hb.b+1 >= hb.a
   let sLen = s.len
   let bLen = hb.b-hb.a+1
   s.setLen(sLen+bLen)
@@ -157,14 +156,23 @@ proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
   strcopy(s, q.s, sLen, hb.a, mLen)
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
+proc substr*(q: DynHeaders, s: var string, x: Slice[int]) {.inline.} =
+  doAssert x.b+1 >= x.a
+  let sLen = s.len
+  let bLen = x.len
+  s.setLen(sLen+bLen)
+  let mLen = min(bLen, q.s.len-x.a)
+  strcopy(s, q.s, sLen, x.a, mLen)
+  strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
+
 proc `$`*(q: DynHeaders): string {.inline.} =
   ## Use it for debugging purposes only.
   ## Use ``substr`` and ``cmp`` for anything else
   result = ""
   for hb in q:
-    q.substr(result, initHBounds(hb.n, hb.n))
+    q.substr(result, hb.n)
     result.add(": ")
-    q.substr(result, initHBounds(hb.v, hb.v))
+    q.substr(result, hb.v)
     result.add("\r\L")
 
 proc cmp*(

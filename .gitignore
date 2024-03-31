@@ -8,6 +8,7 @@ src/hpack/encoder
 src/hpack/strqueue
 src/hpack/hcollections
 tests/tests
+tests/testdata2
 tests/sometests
 bin
 docs

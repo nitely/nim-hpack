@@ -1,7 +1,7 @@
-import unittest
+import std/unittest
 
-import hpack/huffman_decoder
-import hpack
+import ../src/hpack/huffman_decoder
+import ../src/hpack
 
 proc toBytes(s: seq[uint16]): seq[byte] =
   result = newSeqOfCap[byte](len(s) * 2)
