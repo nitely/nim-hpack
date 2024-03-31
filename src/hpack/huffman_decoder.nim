@@ -1,4 +1,4 @@
-import huffman_data
+import ./huffman_data
 
 type
   State = enum

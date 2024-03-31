@@ -1,10 +1,10 @@
 ## HPACK encoder
 
 import
-  headers_data,
-  huffman_encoder,
-  hcollections,
-  exceptions
+  ./headers_data,
+  ./huffman_encoder,
+  ./hcollections,
+  ./exceptions
 
 export
   hcollections,

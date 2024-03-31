@@ -1,4 +1,4 @@
-import huffman_data
+import ./huffman_data
 
 proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
   result = 0
