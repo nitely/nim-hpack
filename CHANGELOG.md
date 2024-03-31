@@ -1,6 +1,10 @@
+# v0.3.1
+
+* Bug fix #3
+
 # v0.3.0
 
-*  Improve resize & remove number of headers limit #2
+* Improve resize & remove number of headers limit #2
 
 # v0.2.0
 
