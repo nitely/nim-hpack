@@ -5,7 +5,7 @@ author = "Esteban C Borsani (@nitely)"
 description = "HPACK (Header Compression for HTTP/2)"
 license = "MIT"
 srcDir = "src"
-skipDirs = @["tests"]
+skipDirs = @["tests", "gen"]
 
 requires "nim >= 0.19.0"
 

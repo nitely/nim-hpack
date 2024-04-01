@@ -31,12 +31,23 @@ proc testCase(theDir: string) =
       var wireBytes = newSeq[byte]()
       for c in wire.parseHexStr():
         wireBytes.add c.byte
+      if "header_table_size" in cases:
+        let decSize = cases["header_table_size"].getInt(-1)
+        if decSize >= 0:
+          headersDec.setSize decSize
       var ds = initDecodedStr()
+      #echo fname & " wire: " & wire
       hdecodeAll(wireBytes, headersDec, ds)
       #echo $ds
       doAssert $ds == headers, fname & " wire: " & wire
       inc checked
-  doAssert checked == 3384
+  #echo checked
+  if theDir == "nghttp2-16384-4096":
+    doAssert checked == 3267
+  elif theDir == "nghttp2-change-table-size":
+    doAssert checked == 3267
+  else:
+    doAssert checked == 3384
 
 proc testCase2(theDir: string, store: Store, huffman: bool) =
   echo theDir
@@ -72,6 +83,14 @@ proc testCase2(theDir: string, store: Store, huffman: bool) =
       inc checked
   doAssert checked == 3384
 
+testCase "go-hpack"
+testCase "nghttp2"
+testCase "nghttp2-16384-4096"
+testCase "nghttp2-change-table-size"
+testCase "node-http2-hpack"
+testCase "python-hpack"
+testCase "swift-nio-hpack-huffman"
+testCase "swift-nio-hpack-plain-text"
 testCase "haskell-http2-linear"
 testCase "haskell-http2-linear-huffman"
 testCase "haskell-http2-naive"

@@ -53,7 +53,7 @@ type
     s: string
     pos, filled: int
     bounds: Deque[HBounds]
-    maxSize*, initialSize, minSetSize: int
+    size, maxSize*, initialSize, minSetSize: int
 
 proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
@@ -64,6 +64,7 @@ proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
     pos: 0,
     filled: 0,
     bounds: initDeque[HBounds](),
+    size: strsize,
     maxSize: strsize,
     initialSize: strsize,
     minSetSize: strsize)
@@ -96,7 +97,7 @@ template len(hb: HBounds): int =
 
 proc left(q: DynHeaders): Natural {.inline.} =
   ## Return available space
-  q.s.len-q.filled
+  q.size-q.filled
 
 proc pop(q: var DynHeaders): HBounds {.inline.} =
   ## Return and remove header
@@ -113,7 +114,7 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   let nvLen = v.len + n.len
   while q.len > 0 and nvLen > q.left-32:
     discard q.pop()
-  if nvLen > q.s.len-32:
+  if nvLen > q.size-32:
     return
   let hbn = q.pos .. q.pos+n.len-1
   let nLen = min(n.len, q.s.len-q.pos)
@@ -127,14 +128,20 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   q.pos = (q.pos+v.len) mod q.s.len
   q.bounds.addFirst HBounds(n: hbn, v: hbv)
   inc(q.filled, nvLen+32)
-  doAssert q.filled <= q.s.len
+  doAssert q.filled <= q.size
 
 proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear the queue.
   q.minSetSize = min(q.minSetSize, strsize)
-  q.s.setLen(strsize)
+  q.size = strsize
+  # shrinking cannot be done without copying
+  # because of wrap around
+  # and grow needs to unwrap the wrapped header
+  # XXX fix
+  if strsize > q.s.len:
+    q.s.setLen(strsize)
   while strsize < q.filled:
     discard q.pop()
 
@@ -195,7 +202,7 @@ func minSetSize*(q: DynHeaders): int =
   q.minSetSize
 
 func finalSetSize*(q: DynHeaders): int =
-  q.s.len
+  q.size
 
 func hasResized*(q: DynHeaders): bool =
   # we only care about len decrease (entry eviction)
