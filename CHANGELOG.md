@@ -1,3 +1,7 @@
+# v0.3.2
+
+* Resize bug fix
+
 # v0.3.1
 
 * Bug fix #3
