@@ -130,6 +130,12 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
+func maxBound(q: DynHeaders): int =
+  result = 0
+  for hb in q.bounds:
+    result = max(result, hb.n.b)
+    result = max(result, hb.v.b)
+
 proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
@@ -139,9 +145,15 @@ proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   # shrinking cannot be done without copying
   # because of wrap around
   # and grow needs to unwrap the wrapped header
-  # XXX fix
   if strsize > q.s.len:
-    q.s.setLen(strsize)
+    let mb = q.maxBound()
+    let oldLen = q.s.len
+    q.s.setLen max(mb+1, strsize)
+    for i in 0 .. mb-oldLen:
+      q.s[oldLen+i] = q.s[i]
+  if strsize == 0:
+    q.filled = 0
+    q.bounds.clear()
   while strsize < q.filled:
     discard q.pop()
 
@@ -322,3 +334,47 @@ when isMainModule:
     doAssert dh.len == 0
     dh.setSize(256)
     doAssert dh.len == 0
+  block:
+    # test for out of bounds wrap around bug
+    echo "Test DynHeaders shrink"
+    var dh = initDynHeaders(500)
+    for _ in 0 .. 200:
+      dh.add("asd", "qwe")
+    dh.setSize(100)
+    doAssert $dh ==
+      "asd: qwe\r\L" &
+      "asd: qwe\r\L"
+  block:
+    # test for wrap around bug
+    echo "Test DynHeaders grow"
+    var dh = initDynHeaders(123)
+    for _ in 0 .. 63:
+      dh.add("zxc", "asdqw")
+    dh.setSize(234)
+    #echo $dh
+    doAssert $dh ==
+      "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L"
+  block:
+    echo "Test DynHeaders grow 2"
+    var dh = initDynHeaders(123)
+    for _ in 0 .. 63:
+      dh.add("zxc", "asdqw")
+    dh.setSize(256)
+    #echo $dh
+    doAssert $dh ==
+      "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L"
+  block:
+    echo "Test DynHeaders grow 3"
+    var dh = initDynHeaders(123)
+    for _ in 0 .. 63:
+      dh.add("zxc", "asdqw")
+    dh.setSize(124)
+    #echo $dh
+    doAssert $dh ==
+      "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L"
