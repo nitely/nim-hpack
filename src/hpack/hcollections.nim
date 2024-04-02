@@ -130,38 +130,23 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
-#func maxBound(q: DynHeaders): int =
-#  result = 0
-#  for hb in q.bounds:
-#    result = max(result, hb.n.b)
-#    result = max(result, hb.v.b)
-
 proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear the queue.
   q.minSetSize = min(q.minSetSize, strsize)
   q.size = strsize
-  # shrinking cannot be done without an entire copy
+  # shrinking cannot be done efficiently
   # because of wrap around, so we don't ever shrink
-  # and grow needs to unwrap the wrapped header
+  # + Nim won't shrink strings anyway
+  # and grow needs to un-wrap around the headers
   if strsize > q.s.len:
     let oldLen = q.s.len
     q.s.setLen max(strsize, oldLen*2)
     for i in 0 .. oldLen-1:
       q.s[oldLen+i] = q.s[i]
-    #copyMem(addr q.s[oldLen], addr q.s[0], oldLen)
-  #if strsize > q.s.len:
-  #  let oldLen = q.s.len
-  #  q.s.setLen strsize
-  #  let mb = q.maxBound()
-  #  let obLen = max(0, mb-oldLen+1)
-  #  let mbLen = min(obLen, strsize-oldLen)
-  #  strcopy(q.s, q.s, oldLen, 0, mbLen)
-  #  strcopy(q.s, q.s, 0, mbLen, obLen-mbLen)
   if strsize == 0:
-    q.filled = 0
-    q.bounds.clear()
+    q.clear()
   while strsize < q.filled:
     discard q.pop()
 

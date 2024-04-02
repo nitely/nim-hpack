@@ -221,7 +221,8 @@ proc litdecode(
     h: var DynHeaders,
     d: var DecodedStr,
     np: NbitPref,
-    store: static[bool]): Natural {.inline.} =
+    store: bool
+): Natural {.inline.} =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or
@@ -244,7 +245,7 @@ proc litdecode(
   if result > int.high-nv:
     raiseDecodeError("overflow")
   inc(result, nv)
-  when store:
+  if store:
     let hsl = d[^1]
     h.add(
       toOpenArray(d.s, hsl.n.a, hsl.n.b),
