@@ -130,11 +130,11 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
-func maxBound(q: DynHeaders): int =
-  result = 0
-  for hb in q.bounds:
-    result = max(result, hb.n.b)
-    result = max(result, hb.v.b)
+#func maxBound(q: DynHeaders): int =
+#  result = 0
+#  for hb in q.bounds:
+#    result = max(result, hb.n.b)
+#    result = max(result, hb.v.b)
 
 proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
@@ -142,15 +142,23 @@ proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Set to ``0`` to clear the queue.
   q.minSetSize = min(q.minSetSize, strsize)
   q.size = strsize
-  # shrinking cannot be done without copying
-  # because of wrap around
+  # shrinking cannot be done without an entire copy
+  # because of wrap around, so we don't ever shrink
   # and grow needs to unwrap the wrapped header
   if strsize > q.s.len:
-    let mb = q.maxBound()
     let oldLen = q.s.len
-    q.s.setLen max(mb+1, strsize)
-    for i in 0 .. mb-oldLen:
+    q.s.setLen max(strsize, oldLen*2)
+    for i in 0 .. oldLen-1:
       q.s[oldLen+i] = q.s[i]
+    #copyMem(addr q.s[oldLen], addr q.s[0], oldLen)
+  #if strsize > q.s.len:
+  #  let oldLen = q.s.len
+  #  q.s.setLen strsize
+  #  let mb = q.maxBound()
+  #  let obLen = max(0, mb-oldLen+1)
+  #  let mbLen = min(obLen, strsize-oldLen)
+  #  strcopy(q.s, q.s, oldLen, 0, mbLen)
+  #  strcopy(q.s, q.s, 0, mbLen, obLen-mbLen)
   if strsize == 0:
     q.filled = 0
     q.bounds.clear()
@@ -377,4 +385,12 @@ when isMainModule:
     doAssert $dh ==
       "zxc: asdqw\r\L" &
       "zxc: asdqw\r\L" &
+      "zxc: asdqw\r\L"
+  block:
+    echo "Test DynHeaders grow 4"
+    var dh = initDynHeaders(123)
+    dh.add("zxc", "asdqw")
+    dh.setSize(234)
+    #echo $dh
+    doAssert $dh ==
       "zxc: asdqw\r\L"
