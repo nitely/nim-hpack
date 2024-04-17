@@ -1,13 +1,13 @@
 # Package
 
-version = "0.3.3"
+version = "0.4.0"
 author = "Esteban C Borsani (@nitely)"
 description = "HPACK (Header Compression for HTTP/2)"
 license = "MIT"
 srcDir = "src"
 skipDirs = @["tests", "gen"]
 
-requires "nim >= 0.19.0"
+requires "nim >= 2.0.0"
 
 task gen, "Gen data":
   exec "nim c -r gen/huffman.nim"
