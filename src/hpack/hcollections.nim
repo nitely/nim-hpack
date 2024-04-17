@@ -86,12 +86,6 @@ proc reset*(q: var DynHeaders) {.deprecated.} =
 proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
   q.bounds[i]
 
-template a(hb: HBounds): int =
-  hb.n.a
-
-template b(hb: HBounds): int =
-  hb.n.a+hb.n.len+hb.v.len-1
-
 template len(hb: HBounds): int =
   hb.n.len+hb.v.len
 
@@ -157,16 +151,6 @@ iterator items*(q: DynHeaders): HBounds {.inline.} =
 iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
   for i, b in pairs q.bounds:
     yield (i, b)
-
-proc substr*(q: DynHeaders, s: var string, hb: HBounds) {.inline.} =
-  ## Append a header name and value to ``s``
-  doAssert hb.b+1 >= hb.a
-  let sLen = s.len
-  let bLen = hb.b-hb.a+1
-  s.setLen(sLen+bLen)
-  let mLen = min(bLen, q.s.len-hb.a)
-  strcopy(s, q.s, sLen, hb.a, mLen)
-  strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
 proc substr*(q: DynHeaders, s: var string, x: Slice[int]) {.inline.} =
   doAssert x.b+1 >= x.a
@@ -295,19 +279,23 @@ when isMainModule:
     doAssert dh.filled == 76
     doAssert dh.len == 2
     var res = ""
-    dh.substr(res, dh[0])
+    dh.substr(res, dh[0].n)
+    dh.substr(res, dh[0].v)
     doAssert res == "qweqwe"
     res = ""
-    dh.substr(res, dh[1])
+    dh.substr(res, dh[1].n)
+    dh.substr(res, dh[1].v)
     doAssert res == "asdasd"
     dh.add("a", "")
     doAssert dh.filled == 71
     doAssert dh.len == 2
     res = ""
-    dh.substr(res, dh[0])
+    dh.substr(res, dh[0].n)
+    dh.substr(res, dh[0].v)
     doAssert res == "a"
     res = ""
-    dh.substr(res, dh[1])
+    dh.substr(res, dh[1].n)
+    dh.substr(res, dh[1].v)
     doAssert res == "qweqwe"
   block:
     echo "Test DynHeaders resize"

@@ -52,33 +52,33 @@ suite "Decoder - Test Header Field Representation Examples":
         0x400a'u16, 0x6375, 0x7374, 0x6f6d,
         0x2d6b, 0x6579, 0x0d63, 0x7573,
         0x746f, 0x6d2d, 0x6865, 0x6164, 0x6572].toBytes
-      d = initDecodedStr()
+      s = ""
+      nn = 0 .. -1
+      vv = 0 .. -1
+      dhSize = -1
       dh = initDynHeaders(256)
-    check hdecode(ic, dh, d) == ic.len
-    var i = 0
-    for h in d:
-      check d.s[h.n] == "custom-key"
-      check d.s[h.v] == "custom-header"
-      inc i
-    check i == 1
+    check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
+    check s[nn] == "custom-key"
+    check s[vv] == "custom-header"
     check dh.len == 1
     check $dh == "custom-key: custom-header\r\L"
+    check dhSize == -1
 
   test "Test Literal Header Field without Indexing":
     var
       ic = @[
         0x040c'u16, 0x2f73, 0x616d,
         0x706c, 0x652f, 0x7061, 0x7468].toBytes
-      d = initDecodedStr()
+      s = ""
+      nn = 0 .. -1
+      vv = 0 .. -1
+      dhSize = -1
       dh = initDynHeaders(256)
-    check hdecode(ic, dh, d) == ic.len
-    var i = 0
-    for h in d:
-      check d.s[h.n] == ":path"
-      check d.s[h.v] == "/sample/path"
-      inc i
-    check i == 1
+    check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
+    check s[nn] == ":path"
+    check s[vv] == "/sample/path"
     check dh.len == 0
+    check dhSize == -1
 
   test "Test Literal Header Field Never Indexed":
     var ic = @[
@@ -86,30 +86,30 @@ suite "Decoder - Test Header Field Representation Examples":
       0x7264, 0x0673, 0x6563, 0x7265].toBytes
     ic.add(byte 0x74'u8)
     var
-      d = initDecodedStr()
+      s = ""
+      nn = 0 .. -1
+      vv = 0 .. -1
+      dhSize = -1
       dh = initDynHeaders(256)
-    check hdecode(ic, dh, d) == ic.len
-    var i = 0
-    for h in d:
-      check d.s[h.n] == "password"
-      check d.s[h.v] == "secret"
-      inc i
-    check i == 1
+    check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
+    check s[nn] == "password"
+    check s[vv] == "secret"
     check dh.len == 0
+    check dhSize == -1
 
   test "Test Indexed Header Field":
     var
       ic = @[byte 0x82'u8]
-      d = initDecodedStr()
+      s = ""
+      nn = 0 .. -1
+      vv = 0 .. -1
+      dhSize = -1
       dh = initDynHeaders(256)
-    check hdecode(ic, dh, d) == ic.len
-    var i = 0
-    for h in d:
-      check d.s[h.n] == ":method"
-      check d.s[h.v] == "GET"
-      inc i
-    check i == 1
+    check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
+    check s[nn] == ":method"
+    check s[vv] == "GET"
     check dh.len == 0
+    check dhSize == -1
 
 suite "Decoder - Request Examples without Huffman Coding":
   var dh = initDynHeaders(256)
@@ -120,17 +120,18 @@ suite "Decoder - Request Examples without Huffman Coding":
         0x8286'u16, 0x8441, 0x0f77, 0x7777,
         0x2e65, 0x7861, 0x6d70, 0x6c65,
         0x2e63, 0x6f6d].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
         [":path", "/"],
         [":authority", "www.example.com"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 1
@@ -141,18 +142,19 @@ suite "Decoder - Request Examples without Huffman Coding":
       ic = @[
         0x8286'u16, 0x84be, 0x5808, 0x6e6f,
         0x2d63, 0x6163, 0x6865].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
         [":path", "/"],
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 2
@@ -168,18 +170,19 @@ suite "Decoder - Request Examples without Huffman Coding":
       0x7661, 0x6c75].toBytes
     ic.add(byte 0x65'u16)
     var
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":method", "GET"],
         [":scheme", "https"],
         [":path", "/index.html"],
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 3
@@ -197,17 +200,18 @@ suite "Decoder - Request Examples with Huffman Coding":
       0xe5f2, 0x3a6b, 0xa0ab, 0x90f4].toBytes
     ic.add(byte 0xff'u16)
     var
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
         [":path", "/"],
         [":authority", "www.example.com"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 1
@@ -218,18 +222,19 @@ suite "Decoder - Request Examples with Huffman Coding":
       ic = @[
         0x8286'u16, 0x84be, 0x5886,
         0xa8eb, 0x1064, 0x9cbf].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
         [":path", "/"],
         [":authority", "www.example.com"],
         ["cache-control", "no-cache"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 2
@@ -243,18 +248,19 @@ suite "Decoder - Request Examples with Huffman Coding":
         0x8287'u16, 0x85bf, 0x4088, 0x25a8,
         0x49e9, 0x5ba9, 0x7d7f, 0x8925,
         0xa849, 0xe95b, 0xb8e8, 0xb4bf].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":method", "GET"],
         [":scheme", "https"],
         [":path", "/index.html"],
         [":authority", "www.example.com"],
         ["custom-key", "custom-value"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 3
@@ -278,17 +284,18 @@ suite "Decoder - Response Examples without Huffman Coding":
         0x7474, 0x7073, 0x3a2f, 0x2f77,
         0x7777, 0x2e65, 0x7861, 0x6d70,
         0x6c65, 0x2e63, 0x6f6d].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":status", "302"],
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 4
@@ -302,17 +309,18 @@ suite "Decoder - Response Examples without Huffman Coding":
     var
       ic = @[
         0x4803'u16, 0x3330, 0x37c1, 0xc0bf].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":status", "307"],
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 4
@@ -338,7 +346,8 @@ suite "Decoder - Response Examples without Huffman Coding":
         0x6765, 0x3d33, 0x3630, 0x303b,
         0x2076, 0x6572, 0x7369, 0x6f6e,
         0x3d31].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":status", "200"],
         ["cache-control", "private"],
@@ -347,11 +356,11 @@ suite "Decoder - Response Examples without Huffman Coding":
         ["content-encoding", "gzip"],
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 3
@@ -374,17 +383,18 @@ suite "Decoder - Response Examples with Huffman Coding":
         0x2d1b, 0xff6e, 0x919d, 0x29ad,
         0x1718, 0x63c7, 0x8f0b, 0x97c8,
         0xe9ae, 0x82ae, 0x43d3].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":status", "302"],
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 4
@@ -398,17 +408,18 @@ suite "Decoder - Response Examples with Huffman Coding":
     var
       ic = @[
         0x4883'u16, 0x640e, 0xffc1, 0xc0bf].toBytes
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":status", "307"],
         ["cache-control", "private"],
         ["date", "Mon, 21 Oct 2013 20:13:21 GMT"],
         ["location", "https://www.example.com"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 4
@@ -432,7 +443,8 @@ suite "Decoder - Response Examples with Huffman Coding":
       0x4ee5, 0xb106, 0x3d50].toBytes
     ic.add(byte 0x07'u8)
     var
-      d = initDecodedStr()
+      s = ""
+      bb = newSeq[HBounds]()
       expected = [
         [":status", "200"],
         ["cache-control", "private"],
@@ -441,11 +453,11 @@ suite "Decoder - Response Examples with Huffman Coding":
         ["content-encoding", "gzip"],
         ["set-cookie",
          "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"]]
-    hdecodeAll(ic, dh, d)
+    hdecodeAll(ic, dh, s, bb)
     var i = 0
-    for h in d:
-      check d.s[h.n] == expected[i][0]
-      check d.s[h.v] == expected[i][1]
+    for h in bb:
+      check s[h.n] == expected[i][0]
+      check s[h.v] == expected[i][1]
       inc i
     check i == expected.len
     check dh.len == 3
@@ -802,34 +814,24 @@ suite "Uncategorized tests":
     var dh = initDynHeaders(4096)
     var ic = newSeq[byte]()
     hencode("pragma", "", dh, ic, huffman = false)
-    var d = initDecodedStr()
-    dh.reset()
-    hdecodeAll(ic, dh, d)
-    check $d == "pragma: \r\n"
+    var s = ""
+    var bb = newSeq[HBounds]()
+    dh.clear()
+    hdecodeAll(ic, dh, s, bb)
+    check s == "pragma: \r\n"
     check $dh == "pragma: \r\n"
 
   test "Empty header value huffman":
     var dh = initDynHeaders(4096)
     var ic = newSeq[byte]()
     hencode("pragma", "", dh, ic, huffman = true)
-    var d = initDecodedStr()
-    dh.reset()
-    hdecodeAll(ic, dh, d)
-    check $d == "pragma: \r\L"
+    var s = ""
+    var bb = newSeq[HBounds]()
+    dh.clear()
+    hdecodeAll(ic, dh, s, bb)
+    check s == "pragma: \r\L"
     check $dh == "pragma: \r\L"
 
-  test "Dynamic table size update":
-    var ic = newSeq[byte]()
-    check signalDynTableSizeUpdate(ic, 256) == 3
-    check ic.len == 3
-    var d = initDecodedStr()
-    var dh = initDynHeaders(4096)
-    var dhSize = 0
-    hdecodeAll(ic, dh, d, dhSize)
-    check dhSize == 256
-    check $d == ""
-    check $dh == ""
-  
   test "encodeLastResize no resize":
     var ic = newSeq[byte]()
     var dh = initDynHeaders(4096)
@@ -896,8 +898,9 @@ suite "Uncategorized tests":
     # decoder
     var decDh = initDynHeaders(4096)
     check decDh.finalSetSize == 4096
-    var d = initDecodedStr()
-    hdecodeAll(ic, decDh, d)
+    var s = ""
+    var bb = newSeq[HBounds]()
+    hdecodeAll(ic, decDh, s, bb)
     check decDh.finalSetSize == 1024
 
   test "Encoded update signal tries to exceed the max size":
@@ -906,6 +909,7 @@ suite "Uncategorized tests":
     var ic = newSeq[byte]()
     discard encodeLastResize(encDh, ic)
     var decDh = initDynHeaders(4096)
-    var d = initDecodedStr()
+    var s = ""
+    var bb = newSeq[HBounds]()
     doAssertRaises(DecodeError):
-      hdecodeAll(ic, decDh, d)
+      hdecodeAll(ic, decDh, s, bb)

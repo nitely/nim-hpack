@@ -36,10 +36,11 @@ proc toBytes(s: seq[uint16]): seq[byte] =
 let req1 = @[
   0x8286'u16, 0x8441, 0x8cf1, 0xe3c2,
   0xe5f2, 0x3a6b, 0xa0ab, 0x90f4].toBytes
-var ds = initDecodedStr()
+var ss = ""
+var bb = newSeq[HBounds]()
 var dh = initDynHeaders(256)
-assert hdecodeAll(req1, dh, ds) == req1.len
-assert($ds ==
+assert hdecodeAll(req1, dh, ss, bb) == req1.len
+assert(ss ==
   ":method: GET\r\L" &
   ":scheme: http\r\L" &
   ":path: /\r\L" &
@@ -49,9 +50,10 @@ assert($ds ==
 let req2 = @[
   0x8286'u16, 0x84be, 0x5886,
   0xa8eb, 0x1064, 0x9cbf].toBytes
-ds.reset()
-assert hdecodeAll(req2, dh, ds) == req2.len
-assert($ds ==
+ss.setLen 0
+bb.setLen 0
+assert hdecodeAll(req2, dh, ss, bb) == req2.len
+assert(ss ==
   ":method: GET\r\L" &
   ":scheme: http\r\L" &
   ":path: /\r\L" &

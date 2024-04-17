@@ -17,7 +17,6 @@ proc testCase(theDir: string) =
   var checked = 0
   for fname in paths:
     let jsonNode = parseJson(readFile(dir & "/" & fname))
-    var headersEnc = initDynHeaders(4096)
     var headersDec = initDynHeaders(4096)
     for cases in jsonNode["cases"]:
       var headers = ""
@@ -35,11 +34,12 @@ proc testCase(theDir: string) =
         let decSize = cases["header_table_size"].getInt(-1)
         if decSize >= 0:
           headersDec.setSize decSize
-      var ds = initDecodedStr()
+      var ss = ""
+      var bb = newSeq[HBounds]()
       #echo fname & " wire: " & wire
-      hdecodeAll(wireBytes, headersDec, ds)
-      #echo $ds
-      doAssert $ds == headers, fname & " wire: " & wire
+      hdecodeAll(wireBytes, headersDec, ss, bb)
+      #echo ss
+      doAssert ss == headers, fname & " wire: " & wire
       inc checked
   #echo checked
   if theDir == "nghttp2-16384-4096":
@@ -73,13 +73,14 @@ proc testCase2(theDir: string, store: Store, huffman: bool) =
           discard hencode(
             n, v.getStr(), headersEnc, ic, store = store, huffman = huffman
           )
-      var ds = initDecodedStr()
-      hdecodeAll(ic, headersDec, ds)
+      var ss = ""
+      var bb = newSeq[HBounds]()
+      hdecodeAll(ic, headersDec, ss, bb)
       #echo headers
-      #echo $ds
+      #echo ss
       #echo headersDec.s
       #echo headersEnc.s
-      doAssert $ds == headers
+      doAssert ss == headers
       inc checked
   doAssert checked == 3384
 

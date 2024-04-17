@@ -48,105 +48,10 @@ proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
   if cb shr 7 == 1:
     raiseDecodeError("continuation byte without continuation")
 
-# todo: add neverIndex flag?
-type
-  DecodedSlice* = object
-    ## A decoded string slice.
-    ## It has the boundaries of
-    ## header's name and value
-    n*: Slice[int]
-    v*: Slice[int]
-
-type
-  DecodedStr* = object
-    ## A decoded string contains
-    ## a string of all headers name/value
-    ## put together and a
-    ## sequence of their boundaries
-    s*: string
-    b*: seq[int]
-
-proc initDecodedStr*(): DecodedStr {.inline.} =
-  ## Initialize a ``DecodedStr``
-  DecodedStr(s: "", b: @[])
-
-proc len*(d: DecodedStr): int {.inline.} =
-  ## Return the lenght of a ``DecodedStr``
-  assert d.b.len mod 2 == 0
-  d.b.len div 2
-
-proc `[]`*(d: DecodedStr, i: int): DecodedSlice {.inline.} =
-  ## Return the header slice of
-  ## a decoded string at position ``i``
-  assert i.int < d.len, "out of bounds"
-  let ix = i.int*2
-  result.n.a = if ix == 0: 0 else: d.b[ix-1]
-  result.n.b = d.b[ix]-1
-  result.v.a = d.b[ix]
-  result.v.b = d.b[ix+1]-1
-
-proc `[]`*(d: DecodedStr, i: BackwardsIndex): DecodedSlice {.inline.} =
-  ## Return the header slice of
-  ## a decoded string at position ``i``
-  assert i.int <= d.len, "out of bounds"
-  let ix = i.int*2
-  result.n.a = if ix == d.b.len: 0 else: d.b[^(ix+1)]
-  result.n.b = d.b[^ix]-1
-  result.v.a = d.b[^ix]
-  result.v.b = d.b[^(ix-1)]-1
-
-proc clear*(d: var DecodedStr) {.inline.} =
-  ## Efficiently clear a decoded string
-  d.s.setLen(0)
-  d.b.setLen(0)
-
-proc reset*(d: var DecodedStr) {.deprecated.} =
-  ## Deprecated, use ``clear()`` instead
-  d.clear()
-
-proc add*(d: var DecodedStr, s: string) {.inline.} =
-  ## Add either a header name or a value.
-  ##
-  ## .. code-block:: nim
-  ##   var ds = initDecodedStr()
-  ##   ds.add("my-header")
-  ##   ds.add("my-value")
-  ##
-  d.s.add(s)
-  d.b.add(d.s.len)
-
-iterator items*(d: DecodedStr): DecodedSlice {.inline.} =
-  ## Iterate over headers name and value
-  ##
-  ## .. code-block:: nim
-  ##   var
-  ##     i = 0
-  ##     ds = initDecodedStr()
-  ##   ds.add("my-header")
-  ##   ds.add("my-value")
-  ##   for h in ds:
-  ##     assert ds.s[h.n] == "my-header"
-  ##     assert ds.s[h.v] == "my-value"
-  ##     inc i
-  ##   assert i == 1
-  ##
-  assert d.b.len mod 2 == 0
-  var i, j = 0
-  while j < d.b.len:
-    yield d[i]
-    inc i
-    inc(j, 2)
-
-proc `$`*(d: DecodedStr): string {.inline.} =
-  ## Use it for debugging purposes only
-  result = ""
-  for h in d:
-    result.add(d.s[h.n])
-    result.add(": ")
-    result.add(d.s[h.v])
-    result.add("\r\L")
-
-proc strdecode(s: openArray[byte], d: var DecodedStr): int {.inline.} =
+proc strdecode(
+  s: openArray[byte],
+  ss: var string
+): int {.inline.} =
   ## Decode a literal string.
   ## Return number of consumed octets.
   ## Decoded string is appended to ``d``.
@@ -158,70 +63,83 @@ proc strdecode(s: openArray[byte], d: var DecodedStr): int {.inline.} =
   if result > s.len:
     raiseDecodeError("out of bounds")
   if s[0] shr 7 == 1:  # huffman encoded
-    if hcdecode(toOpenArray(s, n, result-1), d.s) == -1:
+    if hcdecode(toOpenArray(s, n, result-1), ss) == -1:
       raiseDecodeError("huffman error")
-    d.b.add(d.s.len)
   else:
     # todo: memcopy
-    var j = d.s.len
+    var j = ss.len
     var k = n
-    d.s.setLen(d.s.len + result-n)
+    ss.setLen(ss.len + result-n)
     for _ in 0 ..< result-n:
-      d.s[j] = s[k].char
+      ss[j] = s[k].char
       inc j
       inc k
-    d.b.add(d.s.len)
 
-proc addIn(dh: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
-  ## Add header of dynamic table in
-  ## ``i`` position into a decoded string
-  let hb = dh[i]
-  dh.substr(d.s, hb)
-  d.b.add(d.s.len-hb.v.len)
-  d.b.add(d.s.len)
-
-proc addNameIn(dh: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
-  ## Add header's name of dynamic table in
-  ## ``i`` position into a decoded string
-  let hb = dh[i]
-  dh.substr(d.s, hb.n)
-  d.b.add(d.s.len)
-
-proc hname(h: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
+proc hname(
+  dh: DynHeaders,
+  i: Natural,
+  ss: var string,
+  nn: var Slice[int]
+) {.inline.} =
   ## Add header's name of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
-  let
-    i = i-1
-    idyn = i-headersTable.len
+  let L = ss.len
+  let i = i-1
+  let idyn = i-headersTable.len
   if i < len(headersTable):
-    d.add(headersTable[i][0])
-  elif idyn < h.len:
-    h.addNameIn(d, idyn)
+    ss.add headersTable[i][0]
+  elif idyn < dh.len:
+    substr(dh, ss, dh[idyn].n)
   else:
     raiseDecodeError("dyn header name not found")
+  nn = L .. ss.len-1
+  ss.add ':'
+  ss.add ' '
 
-proc header(h: DynHeaders, d: var DecodedStr, i: Natural) {.inline.} =
+proc header(
+  dh: DynHeaders,
+  i: Natural,
+  ss: var string,
+  nn, vv: var Slice[int]
+) {.inline.} =
   ## Add header of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
-  let
-    i = i-1
-    idyn = i-headersTable.len
+  let i = i-1
+  let idyn = i-headersTable.len
   if i < headersTable.len:
-    d.add(headersTable[i][0])
-    d.add(headersTable[i][1])
-  elif idyn < h.len:
-    h.addIn(d, idyn)
+    nn.a = ss.len
+    ss.add headersTable[i][0]
+    nn.b = ss.len-1
+    ss.add ':'
+    ss.add ' '
+    vv.a = ss.len
+    ss.add headersTable[i][1]
+    vv.b = ss.len-1
+    ss.add '\r'
+    ss.add '\n'
+  elif idyn < dh.len:
+    nn.a = ss.len
+    dh.substr(ss, dh[idyn].n)
+    nn.b = ss.len-1
+    ss.add ':'
+    ss.add ' '
+    vv.a = ss.len
+    dh.substr(ss, dh[idyn].v)
+    vv.b = ss.len-1
+    ss.add '\r'
+    ss.add '\n'
   else:
     raiseDecodeError("dyn header not found")
 
 proc litdecode(
-    s: openArray[byte],
-    h: var DynHeaders,
-    d: var DecodedStr,
-    np: NbitPref,
-    store: bool
+  s: openArray[byte],
+  dh: var DynHeaders,
+  ss: var string,
+  nn, vv: var Slice[int],
+  np: NbitPref,
+  store: bool
 ): Natural {.inline.} =
   ## Decode literal header field:
   ## with incremental indexing,
@@ -231,32 +149,41 @@ proc litdecode(
   var dint = 0
   result = intdecode(s, np, dint)
   if dint > 0:
-    hname(h, d, dint)
+    hname(dh, dint, ss, nn)
   else:
     if result > s.len-1:
       raiseDecodeError("out of bounds")
-    let nh = strdecode(toOpenArray(s, result, s.len-1), d)
+    let L = ss.len
+    let nh = strdecode(toOpenArray(s, result, s.len-1), ss)
+    nn = L .. ss.len-1
+    ss.add ':'
+    ss.add ' '
     if result > int.high-nh:
       raiseDecodeError("overflow")
     inc(result, nh)
   if result > s.len-1:
     raiseDecodeError("out of bounds")
-  let nv = strdecode(toOpenArray(s, result, s.len-1), d)
+  let L = ss.len
+  let nv = strdecode(toOpenArray(s, result, s.len-1), ss)
+  vv = L .. ss.len-1
+  ss.add '\r'
+  ss.add '\n'
   if result > int.high-nv:
     raiseDecodeError("overflow")
   inc(result, nv)
   if store:
-    let hsl = d[^1]
-    h.add(
-      toOpenArray(d.s, hsl.n.a, hsl.n.b),
-      toOpenArray(d.s, hsl.v.a, hsl.v.b))
+    dh.add(
+      toOpenArray(ss, nn.a, nn.b),
+      toOpenArray(ss, vv.a, vv.b)
+    )
 
 proc hdecode*(
-    s: openArray[byte],
-    h: var DynHeaders,
-    d: var DecodedStr,
-    dhSize: var int): Natural
-    {.raises: [DecodeError].} =
+  s: openArray[byte],
+  dh: var DynHeaders,
+  ss: var string,
+  nn, vv: var Slice[int],
+  dhSize: var int
+): Natural {.raises: [DecodeError].} =
   ## Decode a single header.
   ## Return number of consumed octets.
   ## ``s`` bytes sequence must not be empty.
@@ -265,108 +192,60 @@ proc hdecode*(
   ## ``-1`` otherwise
   assert len(s) > 0
   dhSize = -1
+  nn = 0 .. -1
+  vv = 0 .. -1
   # indexed
   if s[0] shr 7 == 1:
     var dint = 0
     result = intdecode(s, 7, dint)
     if dint == 0:
       raiseDecodeError("invalid header index 0")
-    header(h, d, dint)
+    header(dh, dint, ss, nn, vv)
     return
   # incremental indexing
   if s[0] shr 6 == 1:
-    result = litdecode(s, h, d, 6, true)
+    result = litdecode(s, dh, ss, nn, vv, 6, true)
     return
   # without indexing or
   # never indexed
   if s[0] shr 4 <= 1:
-    result = litdecode(s, h, d, 4, false)
+    result = litdecode(s, dh, ss, nn, vv, 4, false)
     return
   # dyn table size update
   # https://www.rfc-editor.org/rfc/rfc7541.html#section-6.3
   if s[0] shr 5 == 1:
     result = intdecode(s, 5, dhSize)
-    if dhSize > h.maxSize:
+    if dhSize > dh.maxSize:
       raiseDecodeError("dyn table size update exceeds the max size")
     return
   raiseDecodeError("unknown octet prefix")
 
-proc hdecode*(
-    s: openArray[byte],
-    h: var DynHeaders,
-    d: var DecodedStr): Natural
-    {.deprecated, raises: [DynHeadersError, DecodeError].} =
-  ## Deprecated, use ``hdecode(openArray[byte],
-  ## var DynHeaders, var DecodedStr, var int)`` instead
-  var dhSize = 0
-  result = hdecode(s, h, d, dhSize)
-
-proc hdecodeAll*(
-    s: openArray[byte],
-    h: var DynHeaders,
-    d: var DecodedStr,
-    dhSize: var int)
-    {.deprecated, raises: [DynHeadersError, DecodeError].} =
-  var i = 0
-  while i < s.len:
-    inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
-  assert i == s.len
-
 proc hdecodeAll*(
   s: openArray[byte],
-  h: var DynHeaders,
-  d: var DecodedStr
-) {.raises: [DynHeadersError, DecodeError].} =
+  dh: var DynHeaders,
+  ss: var string,
+  bb: var seq[HBounds]
+) {.raises: [DecodeError].} =
   ## Decode all headers from the blob of bytes
   ## ``s`` and stores it into a decoded string``d``.
   ## The dynamic headers are stored into ``h``
   ## to decode the next message.
-  var dhSize = 0
+  var dhSize = -1
+  var nn = 0 .. -1
+  var vv = 0 .. -1
   var i = 0
   while i < s.len:
-    inc(i, hdecode(toOpenArray(s, i, s.len-1), h, d, dhSize))
+    i += hdecode(
+      toOpenArray(s, i, s.len-1),
+      dh, ss, nn, vv, dhSize
+    )
     if dhSize > -1:
-      h.setSize dhSize
+      dh.setSize dhSize
+    else:
+      bb.add initHBounds(nn, vv)
   assert i == s.len
 
 when isMainModule:
-  block:
-    echo "Test decodedStr"
-    var
-      i = 0
-      ds = initDecodedStr()
-    ds.add("my-header")
-    ds.add("my-value")
-    for h in ds:
-      doAssert ds.s[h.n] == "my-header"
-      doAssert ds.s[h.v] == "my-value"
-      inc i
-    assert i == 1
-  block:
-    let
-      h = "foo-header"
-      v = "foo-value"
-    var ds = initDecodedStr()
-    ds.add(h)
-    ds.add(v)
-    doAssert ds.s[ds[^1].n] == h
-    doAssert ds.s[ds[^1].v] == v
-    let
-      h2 = "bar-header"
-      v2 = "bar-value"
-    ds.add(h2)
-    ds.add(v2)
-    doAssert ds.s[ds[^1].n] == h2
-    doAssert ds.s[ds[^1].v] == v2
-    doAssert ds.s[ds[^2].n] == h
-    doAssert ds.s[ds[^2].v] == v
-  block:
-    var ds = initDecodedStr()
-    ds.add("foo")
-    ds.add("")
-    doAssert ds.s[ds[^1].n] == "foo"
-    doAssert ds.s[ds[^1].v] == ""
-
   block:
     echo "Test Encoding 10 Using a 5-Bit Prefix"
     var
@@ -445,9 +324,9 @@ when isMainModule:
         0b01101101, 0b00101101,
         0b01101011, 0b01100101,
         0b01111001]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "custom-key")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "custom-key")
   block:
     var
       ic = @[
@@ -458,9 +337,9 @@ when isMainModule:
         0b01101000, 0b01100101,
         0b01100001, 0b01100100,
         0b01100101, 0b01110010]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "custom-header")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "custom-header")
   block:
     var
       ic = @[
@@ -471,9 +350,9 @@ when isMainModule:
         0b00101111, 0b01110000,
         0b01100001, 0b01110100,
         0b01101000]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "/sample/path")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "/sample/path")
   block:
     var
       ic = @[
@@ -482,9 +361,9 @@ when isMainModule:
         0b01110011, 0b01110111,
         0b01101111, 0b01110010,
         0b01100100]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "password")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "password")
   block:
     var
       ic = @[
@@ -492,9 +371,9 @@ when isMainModule:
         0b01100101, 0b01100011,
         0b01110010, 0b01100101,
         0b01110100]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "secret")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "secret")
   block:
     var
       ic = @[
@@ -506,9 +385,9 @@ when isMainModule:
         0b01101100, 0b01100101,
         0b00101110, 0b01100011,
         0b01101111, 0b01101101]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "www.example.com")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "www.example.com")
   block:
     var
       ic = @[
@@ -517,9 +396,9 @@ when isMainModule:
         0b01100011, 0b01100001,
         0b01100011, 0b01101000,
         0b01100101]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "no-cache")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "no-cache")
   block:
     echo "Test Request Examples with Huffman Coding"
     var
@@ -531,6 +410,6 @@ when isMainModule:
         0b10100000, 0b10101011,
         0b10010000, 0b11110100,
         0b11111111]
-      d = initDecodedStr()
-    doAssert(strdecode(ic, d) == ic.len)
-    doAssert(d.s == "www.example.com")
+      s = ""
+    doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "www.example.com")

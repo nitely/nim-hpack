@@ -173,8 +173,6 @@ func encodeLastResize*(
     result += signalDynTableSizeUpdate(s, dh.finalSetSize)
 
 when isMainModule:
-  import decoder
-
   block:
     echo "Test Encoding 10 Using a 5-Bit Prefix"
     var ic = newSeq[byte]()

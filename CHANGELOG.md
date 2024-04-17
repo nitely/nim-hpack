@@ -1,3 +1,8 @@
+# v0.4.0
+
+* Removed DecodedStr
+* Removed deprecated procs
+
 # v0.3.3
 
 * Resize improvements
