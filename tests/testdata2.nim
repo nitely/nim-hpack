@@ -81,6 +81,8 @@ proc testCase2(theDir: string, store: Store, huffman: bool) =
       #echo headersDec.s
       #echo headersEnc.s
       doAssert ss == headers
+      doAssert headersEnc == headersDec
+      doAssert $headersEnc == $headersDec
       inc checked
   doAssert checked == 3384
 
