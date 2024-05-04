@@ -195,7 +195,7 @@ proc hdecode*[T](
   nn = 0 .. -1
   vv = 0 .. -1
   # indexed
-  if s[0] shr 7 == 1:
+  if s[0].uint8 shr 7 == 1:
     var dint = 0
     result = intdecode(s, 7, dint)
     if dint == 0:
@@ -203,17 +203,17 @@ proc hdecode*[T](
     header(dh, dint, ss, nn, vv)
     return
   # incremental indexing
-  if s[0] shr 6 == 1:
+  if s[0].uint8 shr 6 == 1:
     result = litdecode(s, dh, ss, nn, vv, 6, true)
     return
   # without indexing or
   # never indexed
-  if s[0] shr 4 <= 1:
+  if s[0].uint8 shr 4 <= 1:
     result = litdecode(s, dh, ss, nn, vv, 4, false)
     return
   # dyn table size update
   # https://www.rfc-editor.org/rfc/rfc7541.html#section-6.3
-  if s[0] shr 5 == 1:
+  if s[0].uint8 shr 5 == 1:
     result = intdecode(s, 5, dhSize)
     if dhSize > dh.maxSize:
       raiseDecodeError("dyn table size update exceeds the max size")

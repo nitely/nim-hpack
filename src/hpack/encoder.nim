@@ -27,13 +27,13 @@ type
 proc add(s: var string, x: byte) {.inline.} =
   s.add x.char
 
-func add2(s: var seq[byte], ss: openArray[char]) {.raises: [].} =
+func add3(s: var seq[byte], ss: openArray[char]) {.raises: [].} =
   let L = s.len
   s.setLen(L+ss.len)
   for i in 0 .. ss.len-1:
     s[L+i] = ss[i].byte
 
-func add2(s: var string, ss: openArray[char]) {.raises: [].} =
+func add3(s: var string, ss: openArray[char]) {.raises: [].} =
   let L = s.len
   s.setLen(L+ss.len)
   for i in 0 .. ss.len-1:
@@ -73,7 +73,7 @@ proc strencode(
     s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
     # todo: memcopy
     inc(result, x.len)
-    s.add2 x
+    s.add3 x
 
 proc litencode(
   h, v: openArray[char],
