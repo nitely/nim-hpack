@@ -19,6 +19,18 @@ suite "Test Huffman decoder":
     check hcdecode(msg, d) != -1
     check d == "www.example.com"
 
+  test "Test HC decode example.com string":
+    # from https://tools.ietf.org/html/rfc7541#appendix-C.4.1
+    let msg = @[
+      0xf1e3'u16, 0xc2e5, 0xf23a,
+      0x6ba0, 0xab90, 0xf4ff].toBytes
+    var msgs = ""
+    for x in msg:
+      msgs.add x.char
+    var d = ""
+    check hcdecode(msgs, d) != -1
+    check d == "www.example.com"
+
   test "Test HC decode no-cache":
     # from https://tools.ietf.org/html/rfc7541#appendix-C.4.2
     let msg = @[0xa8eb'u16, 0x1064, 0x9cbf].toBytes
@@ -513,6 +525,17 @@ suite "Encoder - Header Field Representation Examples":
       dh = initDynHeaders(256)
       ic = newSeq[byte]()
       expected = @[byte 0x82'u8]
+    doAssert hencode(
+      ":method", "GET", dh,
+      ic, store = stoNo, huffman = false) == expected.len
+    doAssert ic == expected
+    doAssert dh.len == 0
+
+  test "Indexed Header Field string":
+    var
+      dh = initDynHeaders(256)
+      ic = ""
+      expected = "" & 0x82.char
     doAssert hencode(
       ":method", "GET", dh,
       ic, store = stoNo, huffman = false) == expected.len

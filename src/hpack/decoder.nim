@@ -17,7 +17,7 @@ type
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)
 
-proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
+proc intdecode[T](s: openArray[T], n: NbitPref, d: var int): int {.inline.} =
   ## Return number of consumed octets.
   ## ``n`` param is the N-bit prefix.
   ## Decoded int is assigned to ``d``
@@ -48,8 +48,8 @@ proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
   if cb shr 7 == 1:
     raiseDecodeError("continuation byte without continuation")
 
-proc strdecode(
-  s: openArray[byte],
+proc strdecode[T](
+  s: openArray[T],
   ss: var string
 ): int {.inline.} =
   ## Decode a literal string.
@@ -62,7 +62,7 @@ proc strdecode(
   inc(result, n)
   if result > s.len:
     raiseDecodeError("out of bounds")
-  if s[0] shr 7 == 1:  # huffman encoded
+  if s[0].uint8 shr 7 == 1:  # huffman encoded
     if hcdecode(toOpenArray(s, n, result-1), ss) == -1:
       raiseDecodeError("huffman error")
   else:
@@ -133,8 +133,8 @@ proc header(
   else:
     raiseDecodeError("dyn header not found")
 
-proc litdecode(
-  s: openArray[byte],
+proc litdecode[T](
+  s: openArray[T],
   dh: var DynHeaders,
   ss: var string,
   nn, vv: var Slice[int],
@@ -177,8 +177,8 @@ proc litdecode(
       toOpenArray(ss, vv.a, vv.b)
     )
 
-proc hdecode*(
-  s: openArray[byte],
+proc hdecode*[T](
+  s: openArray[T],
   dh: var DynHeaders,
   ss: var string,
   nn, vv: var Slice[int],
@@ -220,8 +220,8 @@ proc hdecode*(
     return
   raiseDecodeError("unknown octet prefix")
 
-proc hdecodeAll*(
-  s: openArray[byte],
+proc hdecodeAll*[T](
+  s: openArray[T],
   dh: var DynHeaders,
   ss: var string,
   bb: var seq[HBounds]
@@ -412,4 +412,21 @@ when isMainModule:
         0b11111111]
       s = ""
     doAssert(strdecode(ic, s) == ic.len)
+    doAssert(s == "www.example.com")
+  block:
+    echo "Test Request Examples with Huffman Coding"
+    var
+      ic = @[
+        byte 0b10001100, 0b11110001,
+        0b11100011, 0b11000010,
+        0b11100101, 0b11110010,
+        0b00111010, 0b01101011,
+        0b10100000, 0b10101011,
+        0b10010000, 0b11110100,
+        0b11111111]
+      s = ""
+    var ics = ""
+    for x in ic:
+      ics.add x.char
+    doAssert(strdecode(ics, s) == ics.len)
     doAssert(s == "www.example.com")

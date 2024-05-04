@@ -1,5 +1,8 @@
 import ./huffman_data
 
+proc `+=`(x: var char; y: uint8) {.inline.} =
+  x = char(x.uint8 + y)
+
 proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
   result = 0
   var sLen = 0
@@ -10,7 +13,7 @@ proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
 
 # todo: align + copy bytes? but chars
 #       are usually < a single byte, so meh
-proc hcencode*(s: openArray[char], e: var seq[byte]): Natural {.inline.} =
+proc hcencode*(s: openArray[char], e: var (seq[byte] | string)): Natural {.inline.} =
   result = e.len
   var
     i = e.len

@@ -10,14 +10,36 @@ export
   hcollections,
   exceptions
 
+converter toUint8(x: char): uint8 = result = uint8(x)
+converter toChar(x: uint8): char = result = char(x)
+
 template ones(n: untyped): uint8 =
   assert n >= 1 and n <= 8
   (1'u8 shl n) - 1
 
+proc `and`(x: char, y: uint8): char {.inline.} =
+  (x.uint8 and y).char
+
 type
   NbitPref = range[1 .. 8]
+  SeqByteOrString = seq[byte] | string
 
-proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
+proc add(s: var string, x: byte) {.inline.} =
+  s.add x.char
+
+func add2(s: var seq[byte], ss: openArray[char]) {.raises: [].} =
+  let L = s.len
+  s.setLen(L+ss.len)
+  for i in 0 .. ss.len-1:
+    s[L+i] = ss[i].byte
+
+func add2(s: var string, ss: openArray[char]) {.raises: [].} =
+  let L = s.len
+  s.setLen(L+ss.len)
+  for i in 0 .. ss.len-1:
+    s[L+i] = ss[i].char
+
+proc intencode(x: Natural, n: NbitPref, s: var SeqByteOrString): int {.inline.} =
   ## Encode using N-bit prefix.
   ## Return number of octets.
   ## First byte's 2^N bit is set for convenience
@@ -38,7 +60,7 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
 
 proc strencode(
   x: openArray[char],
-  s: var seq[byte],
+  s: var SeqByteOrString,
   huffman: bool
 ): Natural {.inline.} =
   result = 0
@@ -51,15 +73,11 @@ proc strencode(
     s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
     # todo: memcopy
     inc(result, x.len)
-    var i = s.len
-    s.setLen(s.len+x.len)
-    for c in x:
-      s[i] = c.uint8
-      inc i
+    s.add2 x
 
 proc litencode(
   h, v: openArray[char],
-  s: var seq[byte],
+  s: var SeqByteOrString,
   hidx: int,
   np: NbitPref,
   huffman: bool
@@ -119,7 +137,7 @@ type
 proc hencode*(
   h, v: openArray[char],
   dh: var DynHeaders,
-  s: var seq[byte],
+  s: var SeqByteOrString,
   store = stoYes,
   huffman = true
 ): Natural {.discardable, raises: [].} =
@@ -152,7 +170,7 @@ proc hencode*(
     result = litencode(h, v, s, hidx, 4, huffman)
 
 proc signalDynTableSizeUpdate*(
-  s: var seq[byte],
+  s: var SeqByteOrString,
   size: Natural
 ): Natural {.discardable, raises: [].} =
   ## Add dynamic table size update
@@ -161,7 +179,7 @@ proc signalDynTableSizeUpdate*(
 
 func encodeLastResize*(
   dh: var DynHeaders,
-  s: var seq[byte]
+  s: var SeqByteOrString
 ): Natural {.discardable, raises: [].} =
   ## Add last dynamic table resize signal
   ## to ``s``
@@ -195,3 +213,15 @@ when isMainModule:
     doAssert(ic == @[
       byte 0b11111111, 0b11111111,
       0b11111111, 0b01111111])
+  block:
+    echo "Test Long lit int32 string"
+    var ic = ""
+    doAssert(intencode(2097406, 8, ic) == 4)
+    let expectedBytes = @[
+      byte 0b11111111, 0b11111111,
+      0b11111111, 0b01111111]
+    var ss = ""
+    for b in expectedBytes:
+      ss.add b.char
+    doAssert(ic == ss)
+

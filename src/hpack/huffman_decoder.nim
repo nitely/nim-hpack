@@ -19,7 +19,7 @@ template consume(bits) {.dirty.} =
     inc i
     inc result
 
-proc hcdecode*(s: openArray[byte], d: var string): int {.inline.} =
+proc hcdecode*[T](s: openArray[T], d: var string): int {.inline.} =
   ## Huffman decoder.
   ## Return length of the decoded string.
   ## Return -1 on error.
@@ -34,8 +34,8 @@ proc hcdecode*(s: openArray[byte], d: var string): int {.inline.} =
     i = d.len
   d.setLen(d.len + s.len * 2)
   for b in s:
-    consume(b shr 4)
-    consume(b and 0x0f)
+    consume(b.uint8 shr 4)
+    consume(b.uint8 and 0x0f)
   if hcfDone notin state[stFlags.ord]:
     result = -1
     return
