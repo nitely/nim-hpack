@@ -60,7 +60,7 @@ proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## ``strsize`` is the max size in bytes
   ## of all headers put together.
   DynHeaders(
-    s: newString(strsize),
+    s: "",
     pos: 0,
     filled: 0,
     bounds: initDeque[HBounds](0),
@@ -111,6 +111,9 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
     discard q.pop()
   if nvLen > q.size-32:
     return
+  if q.pos+nvLen >= q.s.len:
+    let desiredLen = max(q.s.len*2, q.pos+nvLen+1)
+    q.s.setLen max(q.s.len, min(q.size, desiredLen))
   let hbn = q.pos .. q.pos+n.len-1
   let nLen = min(n.len, q.s.len-q.pos)
   strcopy(q.s, n, q.pos, 0, nLen)
@@ -137,7 +140,7 @@ proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   # and grow needs to un-wrap around the headers
   if strsize > q.s.len:
     let oldLen = q.s.len
-    q.s.setLen max(strsize, oldLen*2)
+    q.s.setLen oldLen*2
     for i in 0 .. oldLen-1:
       q.s[oldLen+i] = q.s[i]
   if strsize == 0:
