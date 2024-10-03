@@ -1,6 +1,8 @@
 ## Dynamic headers table
 
 import std/deques
+import std/math
+
 import ./exceptions
 
 export
@@ -60,14 +62,15 @@ proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## ``strsize`` is the max size in bytes
   ## of all headers put together.
   DynHeaders(
-    s: newString(strsize),
+    s: "",
     pos: 0,
     filled: 0,
-    bounds: initDeque[HBounds](),
+    bounds: initDeque[HBounds](0),
     size: strsize,
     maxSize: strsize,
     initialSize: strsize,
-    minSetSize: strsize)
+    minSetSize: strsize
+  )
 
 proc len*(q: DynHeaders): int {.inline.} =
   q.bounds.len
@@ -110,6 +113,8 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
     discard q.pop()
   if nvLen > q.size-32:
     return
+  if q.pos+nvLen >= q.s.len:
+    q.s.setLen max(q.s.len, min(q.size, nextPowerOfTwo(q.pos+nvLen+1)))
   let hbn = q.pos .. q.pos+n.len-1
   let nLen = min(n.len, q.s.len-q.pos)
   strcopy(q.s, n, q.pos, 0, nLen)
@@ -127,7 +132,7 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
 proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
-  ## Set to ``0`` to clear the queue.
+  ## Set to ``0`` to clear it.
   q.minSetSize = min(q.minSetSize, strsize)
   q.size = strsize
   # shrinking cannot be done efficiently
@@ -136,7 +141,7 @@ proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   # and grow needs to un-wrap around the headers
   if strsize > q.s.len:
     let oldLen = q.s.len
-    q.s.setLen max(strsize, oldLen*2)
+    q.s.setLen oldLen*2
     for i in 0 .. oldLen-1:
       q.s[oldLen+i] = q.s[i]
   if strsize == 0:
