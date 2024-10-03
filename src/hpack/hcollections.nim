@@ -1,8 +1,6 @@
 ## Dynamic headers table
 
 import std/deques
-import std/math
-
 import ./exceptions
 
 export
@@ -114,7 +112,8 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   if nvLen > q.size-32:
     return
   if q.pos+nvLen >= q.s.len:
-    q.s.setLen max(q.s.len, min(q.size, nextPowerOfTwo(q.pos+nvLen+1)))
+    let desiredLen = max(q.s.len*2, q.pos+nvLen+1)
+    q.s.setLen max(q.s.len, min(q.size, desiredLen))
   let hbn = q.pos .. q.pos+n.len-1
   let nLen = min(n.len, q.s.len-q.pos)
   strcopy(q.s, n, q.pos, 0, nLen)
