@@ -89,26 +89,24 @@ proc cmpTableValue(
 
 proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   ## Find a header name in table
-  result = -1
   var first = -1
   # todo: check if min hash is faster
   for i, h0 in headersTable.pairs:
     if h != h0[0]:
       continue
-    result = i
-    if cmpTableValue(v, dh, result):
-      return
+    if cmpTableValue(v, dh, i):
+      return i
     if first == -1:
-      first = result
+      first = i
+  let L = headersTable.len
   for i, hb in dh.pairs:
     if not cmp(dh, hb.n, h):
       continue
-    result = headersTable.len+i
-    if cmpTableValue(v, dh, result):
-      return
+    if cmpTableValue(v, dh, L+i):
+      return L+i
     if first == -1:
-      first = result
-  result = first
+      first = L+i
+  return first
 
 type
   Store* = enum

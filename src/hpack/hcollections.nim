@@ -10,11 +10,11 @@ type
   DynHeadersError* = object of HpackError
 
 # XXX stdlib add(string, openArray[char]) is missing
-proc strcopy(
+func strcopy(
   x: var string,
   y: openArray[char],
   xi, yi, xyLen: int
-) {.inline.} =
+) {.inline, raises: [].} =
   var
     i = 0
     j = xi
@@ -25,10 +25,10 @@ proc strcopy(
     inc j
     inc k
 
-proc strcmp(
+func strcmp(
   x, y: openArray[char],
   xi, yi, xyLen: Natural
-): bool {.inline.} =
+): bool {.inline, raises: [].} =
   x.toOpenArray(xi, xi+xyLen-1) == y.toOpenArray(yi, yi+xyLen-1)
 
 type
@@ -36,7 +36,7 @@ type
     ## Header's name and value boundaries
     n*, v*: Slice[int]
 
-proc initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
+func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
   ## Initialize ``HBounds`` with
   ## header's name and value
   HBounds(n: n, v: v)
@@ -55,7 +55,7 @@ type
     bounds: Deque[HBounds]
     size, maxSize*, initialSize, minSetSize: int
 
-proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
+func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
   ## ``strsize`` is the max size in bytes
   ## of all headers put together.
@@ -70,31 +70,31 @@ proc initDynHeaders*(strsize: int): DynHeaders {.inline.} =
     minSetSize: strsize
   )
 
-proc len*(q: DynHeaders): int {.inline.} =
+func len*(q: DynHeaders): int {.inline, raises: [].} =
   q.bounds.len
 
-proc clear*(q: var DynHeaders) {.inline.} =
+func clear*(q: var DynHeaders) {.inline, raises: [].} =
   ## Efficiently clear the table
   q.pos = 0
   q.filled = 0
   q.bounds.clear()
   q.minSetSize = 0
 
-proc reset*(q: var DynHeaders) {.deprecated.} =
+func reset*(q: var DynHeaders) {.deprecated.} =
   ## Deprecated, use ``clear()`` instead
   q.clear()
 
-proc `[]`*(q: DynHeaders, i: Natural): HBounds {.inline.} =
+func `[]`*(q: DynHeaders, i: Natural): HBounds {.inline, raises: [].} =
   q.bounds[i]
 
 template len(hb: HBounds): int =
   hb.n.len+hb.v.len
 
-proc left(q: DynHeaders): Natural {.inline.} =
+func left(q: DynHeaders): Natural {.inline, raises: [].} =
   ## Return available space
   q.size-q.filled
 
-proc pop(q: var DynHeaders): HBounds {.inline.} =
+func pop(q: var DynHeaders): HBounds {.inline, raises: [].} =
   ## Return and remove header
   ## from the table in FIFO order
   doAssert q.len > 0, "empty queue"
@@ -102,7 +102,7 @@ proc pop(q: var DynHeaders): HBounds {.inline.} =
   dec(q.filled, result.len+32)
   doAssert q.filled >= 0
 
-proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
+func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
   ## Add a header name and value to the table.
   ## Evicts entries that no longer fit.
   ## Items are added and removed in FIFO order
@@ -125,7 +125,7 @@ proc add*(q: var DynHeaders, n, v: openArray[char]) {.inline.} =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
-proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
+func setSize*(q: var DynHeaders, strsize: Natural) {.raises: [].} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear it.
@@ -145,15 +145,15 @@ proc setSize*(q: var DynHeaders, strsize: Natural) {.inline.} =
   while strsize < q.filled:
     discard q.pop()
 
-iterator items*(q: DynHeaders): HBounds {.inline.} =
+iterator items*(q: DynHeaders): HBounds {.inline, raises: [].} =
   for b in q.bounds:
     yield b
 
-iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
+iterator pairs*(q: DynHeaders): (int, HBounds) {.inline, raises: [].} =
   for i, b in pairs q.bounds:
     yield (i, b)
 
-proc substr*(q: DynHeaders, s: var string, x: Slice[int]) {.inline.} =
+func substr*(q: DynHeaders, s: var string, x: Slice[int]) {.raises: [].} =
   doAssert x.b+1 >= x.a
   let sLen = s.len
   let bLen = x.len
@@ -162,7 +162,7 @@ proc substr*(q: DynHeaders, s: var string, x: Slice[int]) {.inline.} =
   strcopy(s, q.s, sLen, x.a, mLen)
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
-proc `$`*(q: DynHeaders): string {.inline.} =
+func `$`*(q: DynHeaders): string {.raises: [].} =
   ## Use it for debugging purposes only.
   ## Use ``substr`` and ``cmp`` for anything else
   result = ""
@@ -172,11 +172,11 @@ proc `$`*(q: DynHeaders): string {.inline.} =
     q.substr(result, hb.v)
     result.add("\r\L")
 
-proc cmp*(
+func cmp*(
   q: DynHeaders,
   b: Slice[int],
   s: openArray[char]
-): bool {.inline.} =
+): bool {.raises: [].} =
   ## Efficiently compare a header name
   ## or value against a string
   if b.len != s.len:
@@ -188,13 +188,13 @@ proc cmp*(
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
 
-func minSetSize*(q: DynHeaders): int =
+func minSetSize*(q: DynHeaders): int {.raises: [].} =
   q.minSetSize
 
-func finalSetSize*(q: DynHeaders): int =
+func finalSetSize*(q: DynHeaders): int {.raises: [].} =
   q.size
 
-func hasResized*(q: DynHeaders): bool =
+func hasResized*(q: DynHeaders): bool {.raises: [].} =
   # we only care about len decrease (entry eviction)
   # and final len. If it was increased and restored
   # we don't care, it's a no-op
@@ -202,7 +202,7 @@ func hasResized*(q: DynHeaders): bool =
     q.initialSize != q.minSetSize or
     q.minSetSize != q.finalSetSize
 
-func clearLastResize*(q: var DynHeaders) =
+func clearLastResize*(q: var DynHeaders) {.raises: [].} =
   q.minSetSize = q.finalSetSize
   q.initialSize = q.finalSetSize
 
