@@ -6,8 +6,7 @@ import ./exceptions
 export
   exceptions
 
-type
-  DynHeadersError* = object of HpackError
+type DynHeadersError* = object of HpackError
 
 # XXX stdlib add(string, openArray[char]) is missing
 func strcopy(
@@ -31,34 +30,42 @@ func strcmp(
 ): bool {.inline, raises: [].} =
   x.toOpenArray(xi, xi+xyLen-1) == y.toOpenArray(yi, yi+xyLen-1)
 
-type
-  HBounds* = object
-    ## Header's name and value boundaries
-    n*, v*: Slice[int]
+type HBounds* = object
+  ## Header's name and value boundaries
+  # XXX maybe this should be uint16,
+  #     but it'll limit the size to 32KB
+  n*, v*: Slice[int32]
 
 func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
-  ## Initialize ``HBounds`` with
-  ## header's name and value
-  HBounds(n: n, v: v)
+  doAssert(
+    n.a in 0 .. int32.high and
+    n.b in 0 .. int32.high and
+    v.a in 0 .. int32.high and
+    v.a in 0 .. int32.high
+  )
+  HBounds(
+    n: n.a.int32 .. n.b.int32,
+    v: v.a.int32 .. v.b.int32
+  )
 
-type
-  DynHeaders* = object
-    ## A circular queue.
-    ## This is an implementaion of the
-    ## dynamic header table.
-    ## It can be efficiently reused.
-    ## ``HBounds`` ends may be out of bounds and
-    ## need to be wrapped around. All
-    ## functions here take care of that
-    s: string
-    pos, filled: int
-    bounds: Deque[HBounds]
-    size, maxSize*, initialSize, minSetSize: int
+type DynHeaders* = object
+  ## A circular queue.
+  ## This is an implementaion of the
+  ## dynamic header table.
+  ## It can be efficiently reused.
+  ## ``HBounds`` ends may be out of bounds and
+  ## need to be wrapped around. All
+  ## functions here take care of that
+  s: string
+  pos, filled: int
+  bounds: Deque[HBounds]
+  size, maxSize*, initialSize, minSetSize: int
 
 func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
   ## ``strsize`` is the max size in bytes
   ## of all headers put together.
+  doAssert strsize < int32.high div 2
   DynHeaders(
     s: newString(strsize),
     pos: 0,
@@ -87,7 +94,7 @@ func reset*(q: var DynHeaders) {.deprecated.} =
 func `[]`*(q: DynHeaders, i: Natural): HBounds {.inline, raises: [].} =
   q.bounds[i]
 
-template len(hb: HBounds): int =
+func len(hb: HBounds): int {.inline, raises: [].} =
   hb.n.len+hb.v.len
 
 func left(q: DynHeaders): Natural {.inline, raises: [].} =
@@ -121,7 +128,7 @@ func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
   q.pos = (q.pos+v.len) mod q.s.len
-  q.bounds.addFirst HBounds(n: hbn, v: hbv)
+  q.bounds.addFirst initHBounds(hbn, hbv)
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
@@ -129,6 +136,7 @@ func setSize*(q: var DynHeaders, strsize: Natural) {.raises: [].} =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear it.
+  doAssert strsize < int32.high div 2
   q.minSetSize = min(q.minSetSize, strsize)
   q.size = strsize
   # shrinking cannot be done efficiently
@@ -153,7 +161,7 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline, raises: [].} =
   for i, b in pairs q.bounds:
     yield (i, b)
 
-func substr*(q: DynHeaders, s: var string, x: Slice[int]) {.raises: [].} =
+func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
   doAssert x.b+1 >= x.a
   let sLen = s.len
   let bLen = x.len
@@ -174,7 +182,7 @@ func `$`*(q: DynHeaders): string {.raises: [].} =
 
 func cmp*(
   q: DynHeaders,
-  b: Slice[int],
+  b: Slice[int32],
   s: openArray[char]
 ): bool {.raises: [].} =
   ## Efficiently compare a header name
@@ -235,7 +243,8 @@ when isMainModule:
     doAssert dh.filled == "foobar".len+32
     doAssert dh.pop() == initHBounds(
       0 ..< "foo".len,
-      "foo".len .. "foobar".len-1)
+      "foo".len .. "foobar".len-1
+    )
     doAssert dh.filled == 0
   block:
     var dh = initDynHeaders(256)
