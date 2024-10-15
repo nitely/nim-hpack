@@ -89,6 +89,10 @@ proc cmpTableValue(
 
 proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   ## Find a header name in table
+  # note linear search here is fine;
+  # for a 4KB table, there should be <100 entries;
+  # encoding is controlled by user, and they can
+  # disable indexing if needed
   var first = -1
   # todo: check if min hash is faster
   for i, h0 in headersTable.pairs:
