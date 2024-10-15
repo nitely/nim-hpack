@@ -40,6 +40,7 @@ proc testCase(theDir: string) =
       hdecodeAll(wireBytes, headersDec, ss, bb)
       #echo ss
       doAssert ss == headers, fname & " wire: " & wire
+      doAssert headersDec.len <= 72, $headersDec.len
       inc checked
   #echo checked
   if theDir == "nghttp2-16384-4096":
@@ -83,6 +84,8 @@ proc testCase2(theDir: string, store: Store, huffman: bool) =
       doAssert ss == headers
       doAssert headersEnc == headersDec
       doAssert $headersEnc == $headersDec
+      doAssert headersEnc.len == headersDec.len
+      doAssert headersEnc.len <= 72, $headersEnc.len
       inc checked
   doAssert checked == 3384
 
