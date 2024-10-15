@@ -1,0 +1,8 @@
+nimTitle	encoder	hpack/encoder.html	module src/hpack/encoder		0
+nim	stoYes	hpack/encoder.html#stoYes	Store.stoYes		116
+nim	stoNo	hpack/encoder.html#stoNo	Store.stoNo		116
+nim	stoNever	hpack/encoder.html#stoNever	Store.stoNever		116
+nim	Store	hpack/encoder.html#Store	enum Store		116
+nim	hencode	hpack/encoder.html#hencode,openArray[char],openArray[char],DynHeaders,seq[byte]	proc hencode(h, v: openArray[char]; dh: var DynHeaders; s: var seq[byte];\n        store = stoYes; huffman = true): Natural		121
+nim	signalDynTableSizeUpdate	hpack/encoder.html#signalDynTableSizeUpdate,seq[byte],Natural	proc signalDynTableSizeUpdate(s: var seq[byte]; size: Natural): Natural		156
+nim	encodeLastResize	hpack/encoder.html#encodeLastResize,DynHeaders,seq[byte]	proc encodeLastResize(dh: var DynHeaders; s: var seq[byte]): Natural		164
