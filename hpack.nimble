@@ -1,6 +1,6 @@
 # Package
 
-version = "0.4.0"
+version = "0.4.1"
 author = "Esteban C Borsani (@nitely)"
 description = "HPACK (Header Compression for HTTP/2)"
 license = "MIT"
