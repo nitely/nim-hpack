@@ -1,0 +1,3 @@
+nimTitle	huffman_encoder	hpack/huffman_encoder.html	module src/hpack/huffman_encoder		0
+nim	hcencodeLen	hpack/huffman_encoder.html#hcencodeLen,openArray[char]	proc hcencodeLen(s: openArray[char]): Natural		3
+nim	hcencode	hpack/huffman_encoder.html#hcencode,openArray[char],seq[byte]	proc hcencode(s: openArray[char]; e: var seq[byte]): Natural		13

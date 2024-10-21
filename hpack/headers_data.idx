@@ -1,0 +1,2 @@
+nimTitle	headers_data	hpack/headers_data.html	module src/hpack/headers_data		0
+nim	headersTable	hpack/headers_data.html#headersTable	const headersTable		3
