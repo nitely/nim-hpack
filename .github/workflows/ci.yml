@@ -14,9 +14,9 @@ jobs:
       matrix:
         include:
           - platform: arm64
-            nim: [2.2.0]
+            nim: 2.2.0
           - platform: amd64
-            nim: [2.0.8]
+            nim: 2.0.8
     steps:
     - uses: actions/checkout@v2
     - name: Run Tests
@@ -31,7 +31,7 @@ jobs:
         include:
           # just keep last version
           - platform: arm64
-            nim: [2.2.0]
+            nim: 2.2.0
     steps:
     - uses: actions/checkout@v2
     - name: Build docs
