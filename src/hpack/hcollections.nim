@@ -41,7 +41,7 @@ func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
     n.a in 0 .. int32.high and
     n.b in 0 .. int32.high and
     v.a in 0 .. int32.high and
-    v.a in 0 .. int32.high
+    v.b in 0 .. int32.high
   )
   HBounds(
     n: n.a.int32 .. n.b.int32,
