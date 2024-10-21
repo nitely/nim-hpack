@@ -12,32 +12,26 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - platform: arm64
-            nim: 2.2.0
-          - platform: amd64
-            nim: 2.0.8
+        nim: [2.0.0]
     steps:
     - uses: actions/checkout@v2
     - name: Run Tests
       run: |
-        docker pull --platform=${{ matrix.platform }} nimlang/nim:${{ matrix.nim }}
-        docker run --platform=${{ matrix.platform }} --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble test"
+        docker pull nimlang/nim:${{ matrix.nim }}
+        docker run --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble test"
   docs:
     name: Docs - Nim ${{ matrix.nim }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          # just keep last version
-          - platform: arm64
-            nim: 2.2.0
+        # just keep last version
+        nim: [2.0.0]
     steps:
     - uses: actions/checkout@v2
     - name: Build docs
       run: |
-        docker pull --platform=${{ matrix.platform }} nimlang/nim:${{ matrix.nim }}
-        docker run --platform=${{ matrix.platform }} --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble docs"
+        docker pull nimlang/nim:${{ matrix.nim }}
+        docker run --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble docs"
     - name: Deploy docs
       # to view docs on your own fork: push a gh-pages branch on your fork,
       # enable gh-pages in your fork
