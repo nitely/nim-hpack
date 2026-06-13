@@ -66,14 +66,11 @@ proc strdecode(
     if hcdecode(toOpenArray(s, n, result-1), ss) == -1:
       raiseDecodeError("huffman error")
   else:
-    # todo: memcopy
-    var j = ss.len
-    var k = n
-    ss.setLen(ss.len + result-n)
-    for _ in 0 ..< result-n:
-      ss[j] = s[k].char
-      inc j
-      inc k
+    let count = result-n
+    if count > 0:
+      let i = ss.len
+      ss.setLen(ss.len + count)
+      copyMem(addr ss[i], unsafeAddr s[n], count)
 
 proc hname(
   dh: DynHeaders,

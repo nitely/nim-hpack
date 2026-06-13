@@ -14,15 +14,8 @@ func strcopy(
   y: openArray[char],
   xi, yi, xyLen: int
 ) {.inline, raises: [].} =
-  var
-    i = 0
-    j = xi
-    k = yi
-  while i < xyLen:
-    x[j] = y[k]
-    inc i
-    inc j
-    inc k
+  if xyLen > 0:
+    copyMem(addr x[xi], unsafeAddr y[yi], xyLen)
 
 func strcmp(
   x, y: openArray[char],
@@ -161,7 +154,7 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline, raises: [].} =
   for i, b in pairs q.bounds:
     yield (i, b)
 
-func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
+func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.inline, raises: [].} =
   doAssert x.b+1 >= x.a
   let sLen = s.len
   let bLen = x.len
