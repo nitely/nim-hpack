@@ -12,14 +12,13 @@ export
 
 template ones(n: untyped): uint8 =
   assert n >= 1 and n <= 8
-  uint8((1'u16 shl n) - 1)
+  uint8((1.uint shl n) - 1 and 0xff)
 
 template bit(n: untyped): uint8 =
-  ## 2^n, or 0 if it doesn't fit in a byte
-  uint8((1'u16 shl n) and 0xff)
+  uint8((1.uint shl n) and 0xff)
 
 type
-  NbitPref = range[1 .. 8]
+  NbitPref = int8
 
 proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   ## Encode using N-bit prefix.
