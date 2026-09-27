@@ -1,3 +1,8 @@
+# v0.5.0
+
+* Bug fixes for Nim >= 2.2.8
+* Perf improvements
+
 # v0.4.0
 
 * Removed DecodedStr
