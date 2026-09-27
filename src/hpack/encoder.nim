@@ -4,7 +4,6 @@ import
   ./headers_data,
   ./huffman_encoder,
   ./hcollections,
-  ./utils,
   ./exceptions
 
 export
@@ -50,11 +49,13 @@ proc strencode(
     let sLen = s.len
     inc(result, intencode(x.len, 7, s))
     s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
+    # todo: memcopy
     inc(result, x.len)
-    if x.len > 0:
-      let L = s.len
-      s.setLen(L+x.len)
-      copyMem(addr s[L], unsafeAddr x[0], x.len)
+    var i = s.len
+    s.setLen(s.len+x.len)
+    for c in x:
+      s[i] = c.uint8
+      inc i
 
 proc litencode(
   h, v: openArray[char],
@@ -73,53 +74,43 @@ proc litencode(
     inc(result, strencode(h, s, huffman))
   inc(result, strencode(v, s, huffman))
 
-type
-  StaticName = object
-    ## Static table entries with the same name
-    ## are next to each other
-    hash: uint32
-    first, count: int8
+proc cmpTableValue(
+  s: openArray[char],
+  dh: DynHeaders,
+  i: Natural
+): bool {.inline.} =
+  let idyn = i-headersTable.len
+  if i < headersTable.len:
+    return s == headersTable[i][1]
+  elif idyn < dh.len:
+    return cmp(dh, dh[idyn].v, s)
+  else:
+    doAssert false
 
-const staticIndexLen = 128  # power of 2; ~2x the distinct names
-
-func buildStaticIndex(): array[staticIndexLen, StaticName] =
-  for x in mitems result:
-    x.first = -1
-  var i = 0
-  while i < headersTable.len:
-    let name = headersTable[i][0]
-    var count = 0
-    while i+count < headersTable.len and headersTable[i+count][0] == name:
-      inc count
-    for x in result:
-      doAssert x.first == -1 or headersTable[x.first][0] != name
-    let h = strhash(name)
-    var slot = h.int and (staticIndexLen-1)
-    while result[slot].first != -1:
-      slot = (slot+1) and (staticIndexLen-1)
-    result[slot] = StaticName(hash: h, first: i.int8, count: count.int8)
-    inc(i, count)
-
-const staticIndex = buildStaticIndex()
-
-func findStatic(
-  h, v: openArray[char], hh: uint32, nameIdx: var int
-): int {.inline.} =
-  ## Return the index of the static table entry matching
-  ## the name and value, or ``-1``. ``nameIdx`` is set to
-  ## the first entry matching the name, or ``-1``
-  result = -1
-  nameIdx = -1
-  var slot = hh.int and (staticIndexLen-1)
-  while staticIndex[slot].first != -1:
-    let x = staticIndex[slot]
-    if x.hash == hh and eqStr(headersTable[x.first][0], h):
-      nameIdx = x.first
-      for i in x.first.int ..< x.first.int+x.count.int:
-        if eqStr(headersTable[i][1], v):
-          return i
-      return
-    slot = (slot+1) and (staticIndexLen-1)
+proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
+  ## Find a header name in table
+  # note linear search here is fine;
+  # for a 4KB table, there should be <100 entries;
+  # encoding is controlled by user, and they can
+  # disable indexing if needed
+  var first = -1
+  # todo: check if min hash is faster
+  for i, h0 in headersTable.pairs:
+    if h != h0[0]:
+      continue
+    if cmpTableValue(v, dh, i):
+      return i
+    if first == -1:
+      first = i
+  let L = headersTable.len
+  for i, hb in dh.pairs:
+    if not cmp(dh, hb.n, h):
+      continue
+    if cmpTableValue(v, dh, L+i):
+      return L+i
+    if first == -1:
+      first = L+i
+  return first
 
 type
   Store* = enum
@@ -134,31 +125,16 @@ proc hencode*(
   store = stoYes,
   huffman = true
 ): Natural {.discardable, raises: [].} =
-  let hh = strhash(h)
-  var sNameIdx = -1
-  let sIdx = findStatic(h, v, hh, sNameIdx)
+  let hidx = findInTable(h, v, dh)
   # Indexed
-  if sIdx != -1:
-    result = intencode(sIdx+1, 7, s)
+  if hidx != -1 and cmpTableValue(v, dh, hidx):
+    result = intencode(hidx+1, 7, s)
     return
-  let hv =
-    if dh.len > 0 or store == stoYes: pairhash(hh, v)
-    else: 0
-  if dh.len > 0:
-    let dIdx = dh.find(h, v, hv)
-    if dIdx != -1:
-      result = intencode(headersTable.len+dIdx+1, 7, s)
-      return
-  var hidx = sNameIdx
-  if hidx == -1 and dh.len > 0:
-    hidx = dh.findName(h, hh)
-    if hidx != -1:
-      inc(hidx, headersTable.len)
   case store
   # incremental indexing
   of stoYes:
     result = litencode(h, v, s, hidx, 6, huffman)
-    dh.add(h, v, hh, hv)
+    dh.add(h, v)
   # without indexing or
   of stoNo:
     # todo: litencode for DRY-ness, needs clear bit

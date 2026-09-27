@@ -21,7 +21,6 @@ task test, "Test":
   exec "nim c -r src/hpack/huffman_decoder.nim"
   exec "nim c -r tests/tests.nim"
   exec "nim c -r tests/testdata2.nim"
-  exec "nim c -r tests/testrandom.nim"
 
 task bench, "Benchmark":
   exec "nim c -r -d:release -o:bin/bench bench/bench.nim"

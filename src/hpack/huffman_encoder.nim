@@ -1,54 +1,43 @@
-## Huffman encoder.
-##
-## Codes are appended to a left aligned 64-bit
-## accumulator. After every code the accumulator is
-## stored unconditionally and its whole bytes are
-## consumed, so there are no data dependent branches.
-
 import ./huffman_data
-import ./utils
 
-func hcencodeLen*(s: openArray[char]): int {.inline.} =
-  ## Return the length in bytes of
-  ## the huffman encoded string
-  var bitsLen = 0
+proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
+  result = 0
+  var sLen = 0
   for c in s:
-    inc(bitsLen, hcCodes[c.ord].len.int)
-  result = (bitsLen + 7) shr 3
+    inc(sLen, hcDecTable[c.ord][1].int)
+  result = sLen div 8
+  result += (sLen mod 8 != 0).int
 
-# Indices in the hot loop are guarded by construction
-{.push checks: off.}
-
-func hcencode*(s: openArray[char], e: var seq[byte]): int =
-  ## Huffman encode ``s`` and append it to ``e``.
-  ## Return the number of appended bytes
+proc hcencode*(s: openArray[char], e: var seq[byte]): Natural {.inline.} =
   let eLen = e.len
-  # codes are at most 30 bits, so 4 bytes
-  # per char + 8 bytes of store slack
-  e.setLen(eLen + s.len*4 + 8)
+  # codes are at most 30 bits (4 bytes)
+  e.setLen(eLen+s.len*4)
   var
-    acc = 0'u64  # left aligned; the top n bits are valid
+    acc = 0'u64  # only the low n bits are valid
     n = 0
     i = eLen
   for c in s:
-    let code = hcCodes[c.ord]
-    # n <= 7, and code.len <= 30
-    acc = acc or (code.code.uint64 shl (64 - n - code.len.int))
-    inc n, code.len.int
-    store64BE(e, i, acc)
-    let k = n shr 3
-    inc i, k
-    acc = acc shl (k * 8)
-    n = n and 7
-  if n > 0:
-    # pad with the EOS prefix (ones)
-    acc = acc or (not 0'u64 shr n)
-    e[i] = uint8(acc shr 56)
+    let code = hcDecTable[c.ord]
+    acc = (acc shl code[1]) or code[0]
+    inc(n, code[1].int)
+    if n >= 32:
+      dec(n, 32)
+      let x = acc shr n
+      e[i] = uint8((x shr 24) and 0xff)
+      e[i+1] = uint8((x shr 16) and 0xff)
+      e[i+2] = uint8((x shr 8) and 0xff)
+      e[i+3] = uint8(x and 0xff)
+      inc(i, 4)
+  # pad with ones (EOS prefix)
+  let pad = (8 - (n and 7)) and 7
+  acc = (acc shl pad) or ((1'u64 shl pad) - 1)
+  inc(n, pad)
+  while n > 0:
+    dec(n, 8)
+    e[i] = uint8((acc shr n) and 0xff)
     inc i
   e.setLen(i)
   result = i - eLen
-
-{.pop.}
 
 when isMainModule:
   import huffman_decoder

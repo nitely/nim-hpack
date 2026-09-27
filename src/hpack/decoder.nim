@@ -48,97 +48,90 @@ proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
   if cb shr 7 == 1:
     raiseDecodeError("continuation byte without continuation")
 
-type
-  StrLit = object
-    ## String literal payload bounds
-    a, b: int
-    huffman: bool
-
-func parseStr(s: openArray[byte], i: int, x: var StrLit): int {.inline.} =
-  ## Parse the string literal at ``s[i]``.
-  ## Return number of consumed octets.
-  if i >= s.len:
-    raiseDecodeError("out of bounds")
-  var n = 0
-  let hl = intdecode(toOpenArray(s, i, s.len-1), 7, n)
-  if n > s.len-i-hl:
-    raiseDecodeError("out of bounds")
-  x = StrLit(a: i+hl, b: i+hl+n, huffman: s[i] shr 7 == 1)
-  result = hl+n
-
-func maxLen(x: StrLit): int {.inline.} =
-  if x.huffman: hcdecodeMaxLen(x.b-x.a) else: x.b-x.a
-
-func writeStr(
-  s: openArray[byte], x: StrLit, ss: var string, i: int
+proc strdecode(
+  s: openArray[byte],
+  ss: var string
 ): int {.inline.} =
-  ## Write the decoded string into ``ss[i]``.
-  ## Return the decoded length, or -1 on error.
-  ## ``ss`` must have room for ``x.maxLen``
-  if x.huffman:
-    result = hcdecode(toOpenArray(s, x.a, x.b-1), toOpenArray(ss, i, ss.len-1))
+  ## Decode a literal string.
+  ## Return number of consumed octets.
+  ## Decoded string is appended to ``d``.
+  assert len(s) > 0
+  let n = intdecode(s, 7, result)
+  if result > int.high-n:
+    raiseDecodeError("overflow")
+  inc(result, n)
+  if result > s.len:
+    raiseDecodeError("out of bounds")
+  if s[0] shr 7 == 1:  # huffman encoded
+    if hcdecode(toOpenArray(s, n, result-1), ss) == -1:
+      raiseDecodeError("huffman error")
   else:
-    result = x.b-x.a
-    if result > 0:
-      copyMem(addr ss[i], unsafeAddr s[x.a], result)
+    # todo: memcopy
+    var j = ss.len
+    var k = n
+    ss.setLen(ss.len + result-n)
+    for _ in 0 ..< result-n:
+      ss[j] = s[k].char
+      inc j
+      inc k
 
-func tableNameLen(dh: DynHeaders, i: int): int {.inline.} =
-  ## Length of the name of the static/dynamic
-  ## table entry at index ``i``
+proc hname(
+  dh: DynHeaders,
+  i: Natural,
+  ss: var string,
+  nn: var Slice[int]
+) {.inline.} =
+  ## Add header's name of static/dynamic table
+  ## in ``i`` position into a decoded string
+  assert i > 0
+  let L = ss.len
+  let i = i-1
   let idyn = i-headersTable.len
-  if i < headersTable.len:
-    headersTable[i][0].len
+  if i < len(headersTable):
+    ss.add headersTable[i][0]
   elif idyn < dh.len:
-    dh.nameLen(idyn)
+    substr(dh, ss, dh[idyn].n)
   else:
     raiseDecodeError("dyn header name not found")
-
-func writeName(dh: DynHeaders, i: int, ss: var string, j: int): int {.inline.} =
-  ## Write the name of the table entry at index
-  ## ``i`` into ``ss[j]``; return its length.
-  ## The index must be valid
-  if i < headersTable.len:
-    result = headersTable[i][0].len
-    copyMem(addr ss[j], unsafeAddr headersTable[i][0][0], result)
-  else:
-    result = dh.nameLen(i-headersTable.len)
-    dh.copyName(i-headersTable.len, toOpenArray(ss, j, ss.len-1))
-
-func buildStaticLines(): array[headersTable.len, string] =
-  for i, h in pairs headersTable:
-    result[i] = h[0] & ": " & h[1] & "\r\n"
-
-const staticLines = buildStaticLines()
-
-template writeSep(ss: var string, i: var int, a, b: char) =
-  ss[i] = a
-  ss[i+1] = b
-  inc(i, 2)
+  nn = L .. ss.len-1
+  ss.add ':'
+  ss.add ' '
 
 proc header(
   dh: DynHeaders,
-  i: int,
+  i: Natural,
   ss: var string,
   nn, vv: var Slice[int]
 ) {.inline.} =
   ## Add header of static/dynamic table
-  ## in ``i`` position into a decoded string.
-  ## The index must be valid
-  let L = ss.len
-  var nLen, lineLen = 0
+  ## in ``i`` position into a decoded string
+  assert i > 0
+  let i = i-1
+  let idyn = i-headersTable.len
   if i < headersTable.len:
-    nLen = headersTable[i][0].len
-    lineLen = staticLines[i].len
-    ss.setLen(L + lineLen)
-    copyMem(addr ss[L], unsafeAddr staticLines[i][0], lineLen)
+    nn.a = ss.len
+    ss.add headersTable[i][0]
+    nn.b = ss.len-1
+    ss.add ':'
+    ss.add ' '
+    vv.a = ss.len
+    ss.add headersTable[i][1]
+    vv.b = ss.len-1
+    ss.add '\r'
+    ss.add '\n'
+  elif idyn < dh.len:
+    nn.a = ss.len
+    dh.substr(ss, dh[idyn].n)
+    nn.b = ss.len-1
+    ss.add ':'
+    ss.add ' '
+    vv.a = ss.len
+    dh.substr(ss, dh[idyn].v)
+    vv.b = ss.len-1
+    ss.add '\r'
+    ss.add '\n'
   else:
-    let idyn = i-headersTable.len
-    nLen = dh.nameLen(idyn)
-    lineLen = dh.lineLen(idyn)
-    ss.setLen(L + lineLen)
-    dh.copyLine(idyn, toOpenArray(ss, L, ss.len-1))
-  nn = L .. L+nLen-1
-  vv = L+nLen+2 .. L+lineLen-3
+    raiseDecodeError("dyn header not found")
 
 proc litdecode(
   s: openArray[byte],
@@ -147,47 +140,42 @@ proc litdecode(
   nn, vv: var Slice[int],
   np: NbitPref,
   store: bool
-): int {.inline.} =
+): Natural {.inline.} =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or
   ## never indexed.
   ## Return number of consumed octets
-  var nameIdx = 0
-  var nameLit, valueLit: StrLit
-  result = intdecode(s, np, nameIdx)
-  dec nameIdx  # to 0-based; -1 means literal name
-  var nameMax = 0
-  if nameIdx >= 0:
-    nameMax = tableNameLen(dh, nameIdx)
+  var dint = 0
+  result = intdecode(s, np, dint)
+  if dint > 0:
+    hname(dh, dint, ss, nn)
   else:
-    inc(result, parseStr(s, result, nameLit))
-    nameMax = nameLit.maxLen
-  inc(result, parseStr(s, result, valueLit))
+    if result > s.len-1:
+      raiseDecodeError("out of bounds")
+    let L = ss.len
+    let nh = strdecode(toOpenArray(s, result, s.len-1), ss)
+    nn = L .. ss.len-1
+    ss.add ':'
+    ss.add ' '
+    if result > int.high-nh:
+      raiseDecodeError("overflow")
+    inc(result, nh)
+  if result > s.len-1:
+    raiseDecodeError("out of bounds")
   let L = ss.len
-  ss.setLen(L + nameMax + valueLit.maxLen + 4)
-  var j = L
-  if nameIdx >= 0:
-    inc(j, writeName(dh, nameIdx, ss, j))
-  else:
-    let n = writeStr(s, nameLit, ss, j)
-    if n == -1:
-      ss.setLen(L)
-      raiseDecodeError("huffman error")
-    inc(j, n)
-  nn = L .. j-1
-  writeSep(ss, j, ':', ' ')
-  vv.a = j
-  let n = writeStr(s, valueLit, ss, j)
-  if n == -1:
-    ss.setLen(L)
-    raiseDecodeError("huffman error")
-  inc(j, n)
-  vv.b = j-1
-  writeSep(ss, j, '\r', '\n')
-  ss.setLen(j)
+  let nv = strdecode(toOpenArray(s, result, s.len-1), ss)
+  vv = L .. ss.len-1
+  ss.add '\r'
+  ss.add '\n'
+  if result > int.high-nv:
+    raiseDecodeError("overflow")
+  inc(result, nv)
   if store:
-    dh.addLine(toOpenArray(ss, L, j-1), nn.len)
+    dh.add(
+      toOpenArray(ss, nn.a, nn.b),
+      toOpenArray(ss, vv.a, vv.b)
+    )
 
 proc hdecode*(
   s: openArray[byte],
@@ -212,9 +200,7 @@ proc hdecode*(
     result = intdecode(s, 7, dint)
     if dint == 0:
       raiseDecodeError("invalid header index 0")
-    if dint-1 >= headersTable.len+dh.len:
-      raiseDecodeError("dyn header not found")
-    header(dh, dint-1, ss, nn, vv)
+    header(dh, dint, ss, nn, vv)
     return
   # incremental indexing
   if s[0] shr 6 == 1:
@@ -260,15 +246,6 @@ proc hdecodeAll*(
   assert i == s.len
 
 when isMainModule:
-  proc strdecode(s: openArray[byte], ss: var string): int =
-    var x: StrLit
-    result = parseStr(s, 0, x)
-    let L = ss.len
-    ss.setLen(L + x.maxLen)
-    let n = writeStr(s, x, ss, L)
-    doAssert n != -1
-    ss.setLen(L + n)
-
   block:
     echo "Test Encoding 10 Using a 5-Bit Prefix"
     var
