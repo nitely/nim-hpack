@@ -173,6 +173,12 @@ func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
   strcopy(s, q.s, sLen, x.a, mLen)
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
+func `==`*(a, b: DynHeaders): bool {.raises: [].} =
+  for x, y in fields(a, b):
+    if x != y:
+      return false
+  true
+
 func `$`*(q: DynHeaders): string {.raises: [].} =
   ## Use it for debugging purposes only.
   ## Use ``substr`` and ``cmp`` for anything else
