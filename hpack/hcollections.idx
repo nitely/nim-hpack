@@ -1,0 +1,22 @@
+nimTitle	hcollections	hpack/hcollections.html	module src/hpack/hcollections		0
+nim	DynHeadersError	hpack/hcollections.html#DynHeadersError	object DynHeadersError		9
+nim	HBounds	hpack/hcollections.html#HBounds	object HBounds		36
+nim	initHBounds	hpack/hcollections.html#initHBounds,Slice[int],Slice[int]	proc initHBounds(n, v: Slice[int]): HBounds		42
+nim	DynHeaders	hpack/hcollections.html#DynHeaders	object DynHeaders		54
+nim	initDynHeaders	hpack/hcollections.html#initDynHeaders,int	proc initDynHeaders(strsize: int): DynHeaders		67
+nim	len	hpack/hcollections.html#len,DynHeaders	proc len(q: DynHeaders): int		83
+nim	clear	hpack/hcollections.html#clear,DynHeaders	proc clear(q: var DynHeaders)		86
+nim	reset	hpack/hcollections.html#reset,DynHeaders	proc reset(q: var DynHeaders)		93
+nim	`[]`	hpack/hcollections.html#[],DynHeaders,Natural	proc `[]`(q: DynHeaders; i: Natural): HBounds		97
+nim	add	hpack/hcollections.html#add,DynHeaders,openArray[char],openArray[char]	proc add(q: var DynHeaders; n, v: openArray[char])		115
+nim	setSize	hpack/hcollections.html#setSize,DynHeaders,Natural	proc setSize(q: var DynHeaders; strsize: Natural)		138
+nim	items	hpack/hcollections.html#items.i,DynHeaders	iterator items(q: DynHeaders): HBounds		159
+nim	pairs	hpack/hcollections.html#pairs.i,DynHeaders	iterator pairs(q: DynHeaders): (int, HBounds)		163
+nim	substr	hpack/hcollections.html#substr,DynHeaders,string,Slice[int32]	proc substr(q: DynHeaders; s: var string; x: Slice[int32])		167
+nim	`==`	hpack/hcollections.html#==,DynHeaders,DynHeaders	proc `==`(a, b: DynHeaders): bool		176
+nim	`$`	hpack/hcollections.html#$,DynHeaders	proc `$`(q: DynHeaders): string		182
+nim	cmp	hpack/hcollections.html#cmp,DynHeaders,Slice[int32],openArray[char]	proc cmp(q: DynHeaders; b: Slice[int32]; s: openArray[char]): bool		192
+nim	minSetSize	hpack/hcollections.html#minSetSize,DynHeaders	proc minSetSize(q: DynHeaders): int		208
+nim	finalSetSize	hpack/hcollections.html#finalSetSize,DynHeaders	proc finalSetSize(q: DynHeaders): int		211
+nim	hasResized	hpack/hcollections.html#hasResized,DynHeaders	proc hasResized(q: DynHeaders): bool		214
+nim	clearLastResize	hpack/hcollections.html#clearLastResize,DynHeaders	proc clearLastResize(q: var DynHeaders)		222
