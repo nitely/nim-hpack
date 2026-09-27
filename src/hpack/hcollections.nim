@@ -8,27 +8,30 @@ export
 
 type DynHeadersError* = object of HpackError
 
-# XXX stdlib add(string, openArray[char]) is missing
+{.push checks: off.}
 func strcopy(
-  x: var string,
+  x: var openArray[char],
   y: openArray[char],
   xi, yi, xyLen: int
 ) {.inline, raises: [].} =
-  var
-    i = 0
-    j = xi
-    k = yi
-  while i < xyLen:
-    x[j] = y[k]
-    inc i
-    inc j
-    inc k
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  for i in 0 ..< xyLen:
+    x[xi+i] = y[yi+i]
+{.pop.}
 
+{.push checks: off.}
 func strcmp(
   x, y: openArray[char],
-  xi, yi, xyLen: Natural
+  xi, yi, xyLen: int
 ): bool {.inline, raises: [].} =
-  x.toOpenArray(xi, xi+xyLen-1) == y.toOpenArray(yi, yi+xyLen-1)
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  var diff = 0'u8
+  for i in 0 ..< xyLen:
+    diff = diff or (x[xi+i].uint8 xor y[yi+i].uint8)
+  diff == 0
+{.pop.}
 
 type HBounds* = object
   ## Header's name and value boundaries

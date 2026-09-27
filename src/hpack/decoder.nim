@@ -48,6 +48,18 @@ proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
   if cb shr 7 == 1:
     raiseDecodeError("continuation byte without continuation")
 
+{.push checks: off.}
+func strcopy(
+  x: var openArray[char],
+  y: openArray[byte],
+  xi, yi, xyLen: int
+) {.inline, raises: [].} =
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  for i in 0 ..< xyLen:
+    x[xi+i] = char(y[yi+i])
+{.pop.}
+
 proc strdecode(
   s: openArray[byte],
   ss: var string
@@ -66,14 +78,9 @@ proc strdecode(
     if hcdecode(toOpenArray(s, n, result-1), ss) == -1:
       raiseDecodeError("huffman error")
   else:
-    # todo: memcopy
-    var j = ss.len
-    var k = n
-    ss.setLen(ss.len + result-n)
-    for _ in 0 ..< result-n:
-      ss[j] = s[k].char
-      inc j
-      inc k
+    let L = ss.len
+    ss.setLen(L + result-n)
+    strcopy(ss, s, L, n, result-n)
 
 proc hname(
   dh: DynHeaders,

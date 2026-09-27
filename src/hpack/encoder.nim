@@ -87,6 +87,38 @@ proc cmpTableValue(
   else:
     doAssert false
 
+func nameHash(s: openArray[char], seed: uint32): int {.inline.} =
+  var h = seed
+  for c in s:
+    h = (h xor c.uint32) * 16777619'u32
+  int(h shr 24)  # 256 slots
+
+type StaticSlot = tuple[first, count: int8]
+
+func buildStaticNames(): (uint32, array[256, StaticSlot]) =
+  ## Perfect hash of the static table names. Entries
+  ## with the same name are next to each other
+  var seed = 2166136261'u32
+  while true:
+    var slots: array[256, StaticSlot]
+    for x in mitems slots:
+      x.first = -1
+    var ok = true
+    var i = 0
+    while ok and i < headersTable.len:
+      let slot = nameHash(headersTable[i][0], seed)
+      ok = slots[slot].first == -1
+      slots[slot] = (i.int8, 0'i8)
+      while i < headersTable.len and
+          headersTable[i][0] == headersTable[slots[slot].first][0]:
+        inc slots[slot].count
+        inc i
+    if ok:
+      return (seed, slots)
+    inc seed
+
+const (staticSeed, staticNames) = buildStaticNames()
+
 proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   ## Find a header name in table
   # note linear search here is fine;
@@ -94,14 +126,12 @@ proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   # encoding is controlled by user, and they can
   # disable indexing if needed
   var first = -1
-  # todo: check if min hash is faster
-  for i, h0 in headersTable.pairs:
-    if h != h0[0]:
-      continue
-    if cmpTableValue(v, dh, i):
-      return i
-    if first == -1:
-      first = i
+  let x = staticNames[nameHash(h, staticSeed)]
+  if x.first != -1 and h == headersTable[x.first][0]:
+    first = x.first
+    for i in x.first ..< x.first+x.count:
+      if v == headersTable[i][1]:
+        return i
   let L = headersTable.len
   for i, hb in dh.pairs:
     if not cmp(dh, hb.n, h):
