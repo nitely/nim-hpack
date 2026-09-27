@@ -5,7 +5,7 @@ author = "Esteban C Borsani (@nitely)"
 description = "HPACK (Header Compression for HTTP/2)"
 license = "MIT"
 srcDir = "src"
-skipDirs = @["tests", "gen"]
+skipDirs = @["tests", "gen", "bench"]
 
 requires "nim >= 2.0.0"
 
@@ -21,6 +21,10 @@ task test, "Test":
   exec "nim c -r src/hpack/huffman_decoder.nim"
   exec "nim c -r tests/tests.nim"
   exec "nim c -r tests/testdata2.nim"
+  exec "nim c -r tests/testrandom.nim"
+
+task bench, "Benchmark":
+  exec "nim c -r -d:release -o:bin/bench bench/bench.nim"
 
 task docs, "Docs":
   exec "nim doc2 -o:./docs --project ./src/hpack.nim"
