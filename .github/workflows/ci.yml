@@ -24,7 +24,7 @@ jobs:
       run: |
         nimble install -y --depsOnly
         nimble test
-        nimble becnh
+        nimble bench
   docs:
     name: Docs - Nim ${{ matrix.nim }}
     runs-on: ubuntu-latest
