@@ -12,26 +12,36 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nim: [2.0.0]
+        nim: [2.0.x, 2.2.x, devel]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: jiro4989/setup-nim-action@v2
+      with:
+        nim-version: ${{ matrix.nim }}
+        use-nightlies: true
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Run Tests
       run: |
-        docker pull nimlang/nim:${{ matrix.nim }}
-        docker run --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble test"
+        nimble install -y --depsOnly
+        nimble test
+        nimble becnh
   docs:
     name: Docs - Nim ${{ matrix.nim }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # just keep last version
-        nim: [2.0.0]
+        nim: [2.2.x]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: jiro4989/setup-nim-action@v2
+      with:
+        nim-version: ${{ matrix.nim }}
+        use-nightlies: true
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
     - name: Build docs
       run: |
-        docker pull nimlang/nim:${{ matrix.nim }}
-        docker run --rm -v `pwd`:/usr/src/app -w /usr/src/app nimlang/nim:${{ matrix.nim }} /bin/bash -c "git config --global --add safe.directory /usr/src/app; nimble install -y; nimble docs"
+        nimble install -y --depsOnly
+        nimble docs
     - name: Deploy docs
       # to view docs on your own fork: push a gh-pages branch on your fork,
       # enable gh-pages in your fork
