@@ -8,36 +8,34 @@ proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
   result = sLen div 8
   result += (sLen mod 8 != 0).int
 
+# todo: align + copy bytes? but chars
+#       are usually < a single byte, so meh
 proc hcencode*(s: openArray[char], e: var seq[byte]): Natural {.inline.} =
-  let eLen = e.len
-  # codes are at most 30 bits (4 bytes)
-  e.setLen(eLen+s.len*4)
+  result = e.len
   var
-    acc = 0'u64  # only the low n bits are valid
-    n = 0
-    i = eLen
+    i = e.len
+    j = 0
+    k = 0'u32
+  e.setLen(e.len+s.len*4)
   for c in s:
-    let code = hcDecTable[c.ord]
-    acc = (acc shl code[1]) or code[0]
-    inc(n, code[1].int)
-    if n >= 32:
-      dec(n, 32)
-      let x = acc shr n
-      e[i] = uint8((x shr 24) and 0xff)
-      e[i+1] = uint8((x shr 16) and 0xff)
-      e[i+2] = uint8((x shr 8) and 0xff)
-      e[i+3] = uint8(x and 0xff)
-      inc(i, 4)
-  # pad with ones (EOS prefix)
-  let pad = (8 - (n and 7)) and 7
-  acc = (acc shl pad) or ((1'u64 shl pad) - 1)
-  inc(n, pad)
-  while n > 0:
-    dec(n, 8)
-    e[i] = uint8((acc shr n) and 0xff)
-    inc i
+    assert c.ord < 256
+    let
+      code = hcDecTable[c.ord]
+      co = code[0]
+      coLen = code[1]
+    k = 1'u32 shl (coLen-1)
+    while k > 0'u32:
+      e[i] += ((co and k) > 0'u32).uint8 shl (7-j)
+      j = (j+1) and 7
+      k = k shr 1
+      i += (j == 0).int
+  # padding
+  while j > 0:
+    e[i] += 1'u8 shl (7-j)
+    j = (j+1) and 7
+    i += (j == 0).int
   e.setLen(i)
-  result = i - eLen
+  result = i - result
 
 when isMainModule:
   import huffman_decoder

@@ -1,4 +1,4 @@
-## Generates the Huffman code table
+## Huffman decoding using partial-decodig tables (Choueka variant)
 
 const rawHC = """
     (  0)  |11111111|11000                             1ff8  [13]
@@ -264,6 +264,7 @@ import re
 import math
 import strutils
 import parseutils
+import algorithm
 
 proc parse(rawHC: string): seq[string] =
   result = newSeqOfCap[string](257)
@@ -273,6 +274,270 @@ proc parse(rawHC: string): seq[string] =
     assert b notin result
     result.add(b)
   assert result.len == 257
+
+type
+  Ntype = enum
+    ntNode
+    ntValue
+  Node = ref object
+    case kind: Ntype
+    of ntNode:
+      nxt: seq[Node] not nil
+      c: char
+    of ntValue:
+      v: int
+
+proc newNode(c = '@'): Node =
+  Node(kind: ntNode, nxt: @[], c: c)
+
+proc newNodeValue(v: int): Node =
+  Node(kind: ntValue, v: v)
+
+proc put(n: var Node, c: char): Node =
+  assert n.kind == ntNode
+  for nn in n.nxt:
+    if nn.kind == ntNode and nn.c == c:
+      result = nn
+      return
+  result = newNode(c)
+  n.nxt.add(result)
+
+proc buildTrie(hc: seq[string]): Node =
+  result = newNode()
+  for sym, c in pairs(hc):
+    var n = result
+    for cc in c:
+      n = n.put(cc)
+    n.nxt.add(newNodeValue(sym))
+
+proc strTree(result: var string, n: Node) =
+  ## for debugging purposes
+  assert(not n.isNil)
+  if n.kind == ntValue:
+    result.add("($#)" % $n.v)
+    return
+  result.add("[$#" % $n.c)
+  assert len(n.nxt) <= 3
+  for nn in n.nxt:
+    result.add(' ')
+    strTree(result, nn)
+  result.add(']')
+
+proc `$`(n: Node): string =
+  ## for debugging purposes
+  result = ""
+  strTree(result, n)
+
+#[
+var root = buildTrie(parse(rawHC))
+for n in root.nxt:
+  echo $n
+]#
+
+type
+  Flag = enum
+    flgSym = 0x01
+    flgContinue = 0x02
+    flgDone = 0x04
+  PartialCode = object
+    nxt: int
+    sym: int
+    flags: set[Flag]
+  Row = array[16, PartialCode]
+  Table = seq[Row]
+
+proc initPartialCode(): PartialCode =
+  result.nxt = -1
+  result.sym = -1
+
+proc isEmpty(pc: PartialCode): bool =
+  (pc.nxt == -1 and
+   pc.sym == -1 and
+   pc.flags.card == 0)
+
+proc initRow(): Row =
+  for i in 0 ..< len(result):
+    result[i] = initPartialCode()
+
+proc value(n: Node): int =
+  ## Return sym or -1
+  result = -1
+  for nn in n.nxt:
+    if nn.kind == ntValue:
+      result = nn.v
+      return
+
+proc rootFrom(offset, b: int): int =
+  ## Return root index from offset + bits
+  if offset == 0:
+    result = 0
+    return
+  result = b
+  for i in 0 ..< offset:
+    result = result + 2 ^ i
+
+proc build(
+    n: Node,
+    pdt: var Table,
+    bits: string,
+    roots: seq[int],
+    parent: int) =
+  ## build codes
+  assert n.kind == ntNode
+  assert bits.len <= 4
+  var
+    bits = bits
+    parent = parent
+    b = 0
+  bits.add(n.c)
+  discard parseBin(bits, b)
+  if value(n) != -1:
+    assert len(bits) in {1 .. 4}
+    let
+      offset = 4 - len(bits)
+      bb = b shl offset
+    for i in 0 ..< 2 ^ offset:
+      assert isEmpty(pdt[parent][bb + i])
+      assert roots[rootFrom(offset, i)] != -1  # maybe
+      pdt[parent][bb + i].sym = value(n)
+      pdt[parent][bb + i].nxt = roots[rootFrom(offset, i)]
+      pdt[parent][bb + i].flags.incl({flgContinue, flgSym})
+      # padding
+      if i == 0x0f shr len(bits):
+        pdt[parent][bb + i].flags.incl(flgDone)
+    return
+  if bits.len == 4:
+    assert isEmpty(pdt[parent][b])
+    pdt.add(initRow())
+    pdt[parent][b].nxt = pdt.high
+    pdt[parent][b].flags.incl(flgContinue)
+    parent = pdt.high
+    bits = ""
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, pdt, bits, roots, parent)
+
+proc build(
+    n: Node,
+    pdt: var Table,
+    bits: string,
+    roots: seq[int]) =
+  ## build codes with offset
+  if len(bits) == 3:
+    return
+  assert n.kind == ntNode
+  var
+    bits = bits
+    b = 0
+  bits.add(n.c)
+  discard parseBin(bits, b)
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, pdt, bits, roots)
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, pdt, "", roots, roots[rootFrom(len(bits), b)])
+
+proc build(
+    n: Node,
+    pdt: var Table,
+    bits: string,
+    roots: var seq[int]) =
+  ## build roots
+  if len(bits) == 3:
+    return
+  assert n.kind == ntNode
+  var
+    bits = bits
+    b = 0
+  bits.add(n.c)
+  discard parseBin(bits, b)
+  pdt.add(initRow())
+  assert roots[rootFrom(len(bits), b)] == -1
+  roots[rootFrom(len(bits), b)] = pdt.high
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, pdt, bits, roots)
+
+proc build(n: Node): Table =
+  ##[
+  Build partial decoding table.
+  Codes are not of a fixed size,
+  and while reading them they may contain the
+  start of another code.
+
+  Blocks from 0 to 2+4+8 are the initial states,
+  one for each offset. The rest are continuations
+  of partial codes. Each block has 16 states (2^4)
+  and each index is a 4-bits partial code
+
+  Sample table containing just ``100011`` code:
+
+  offset|---------------0
+     	  | ...
+  1000	| (continues on 15)
+        | ...
+  	    |---------------X (2 blocks)
+        | ...
+  	    |---------------XX (4 blocks)
+        | ...
+        |---------------XXX (8 blocks)
+        | ...
+        |---------------15
+  11XX| | (return sym and continues on XX)
+        | ...
+  ]##
+  result = newSeqOfCap[Row](1_000)
+  var roots = newSeq[int](15)
+  for i in 0 ..< roots.len:
+    roots[i] = -1
+  result.add(initRow())
+  roots[0] = result.high
+  # build roots
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, result, "", roots)
+  let r = roots
+  # build offset codes
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, result, "", r)
+  # build root codes
+  for nn in n.nxt:
+    assert nn.kind == ntNode
+    build(nn, result, "", r, 0)
+  # padding
+  for i in 0 ..< 4:
+    let offset = rootFrom(i, 0x0f shr (4 - i))
+    result[roots[offset]][0x0f].flags.incl(flgDone)
+
+proc toInt(f: set[Flag]): int =
+  result = 0
+  for ff in f:
+    result = result or ff.ord
+
+proc `$`(t: Table): string =
+  var rows = newSeq[string]()
+  for r in t:
+    var row = newSeq[string]()
+    for c in r:
+      # EOS (256) is not allowed
+      let
+        sym = case c.sym
+          of -1: 0
+          of 256: 0
+          else: c.sym
+        flags = case c.sym
+          of 256: {}
+          else: c.flags
+        nxt = case c.nxt
+          of -1: 0
+          else: c.nxt
+      row.add(
+        "[$#'u8, $#, $#]" % [
+          $nxt, $sym, $toInt(flags)])
+    rows.add("[\L    $#\L  ]" % join(row, ",\L    "))
+  result = "[\L  $#\L]" % join(rows, ",\L  ")
 
 type
   DecodeTable = seq[array[2, int]]
@@ -292,13 +557,46 @@ proc `$`(t: DecodeTable): string =
 
 const hcTemplate = """# auto generated
 
+type
+  HcFlag* = enum
+    hcfSym = $#
+    hcfContinue = $#
+    hcfDone = $#
+
+const hcTable* = $#
 const hcDecTable* = $#
 """
 
 when isMainModule:
+  let table = rawHC.parse.buildTrie.build
+  echo table.len
+
   let decTable = rawHC.parse.buildDecodeTable
+
   var f = open("./src/hpack/huffman_data.nim", fmWrite)
   try:
-    f.write(hcTemplate % [$decTable])
+    f.write(hcTemplate % [
+      $flgSym.ord,
+      $flgContinue.ord,
+      $flgDone.ord,
+      $table,
+      $decTable])
   finally:
     close(f)
+
+  block:
+    echo "Test some codes"
+    var nxt = 0
+    nxt = table[nxt][0b1111].nxt
+    nxt = table[nxt][0b1111].nxt
+    nxt = table[nxt][0b1100].nxt
+    assert table[nxt][0b0].sym == 0
+    assert table[nxt][0b0111].sym == 0
+    assert flgDone in table[nxt][0b0111].flags
+    nxt = table[nxt][0b0111].nxt
+    nxt = table[nxt][0b1111].nxt
+    nxt = table[nxt][0b1111].nxt
+    nxt = table[nxt][0b1111].nxt
+    nxt = table[nxt][0b1101].nxt
+    assert table[nxt][0b1000].sym == 1
+    assert flgDone in table[nxt][0b1000].flags
