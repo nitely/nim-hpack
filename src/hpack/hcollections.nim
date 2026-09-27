@@ -8,19 +8,30 @@ export
 
 type DynHeadersError* = object of HpackError
 
+{.push checks: off.}
 func strcopy(
-  x: var string,
+  x: var openArray[char],
   y: openArray[char],
   xi, yi, xyLen: int
 ) {.inline, raises: [].} =
-  if xyLen > 0:
-    copyMem(addr x[xi], unsafeAddr y[yi], xyLen)
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  for i in 0 ..< xyLen:
+    x[xi+i] = y[yi+i]
+{.pop.}
 
+{.push checks: off.}
 func strcmp(
   x, y: openArray[char],
-  xi, yi, xyLen: Natural
+  xi, yi, xyLen: int
 ): bool {.inline, raises: [].} =
-  xyLen == 0 or equalMem(unsafeAddr x[xi], unsafeAddr y[yi], xyLen)
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  var diff = 0'u8
+  for i in 0 ..< xyLen:
+    diff = diff or (x[xi+i].uint8 xor y[yi+i].uint8)
+  diff == 0
+{.pop.}
 
 type HBounds* = object
   ## Header's name and value boundaries
