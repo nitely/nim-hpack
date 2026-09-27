@@ -12,7 +12,11 @@ export
 
 template ones(n: untyped): uint8 =
   assert n >= 1 and n <= 8
-  (1'u8 shl n) - 1
+  uint8((1'u16 shl n) - 1)
+
+template bit(n: untyped): uint8 =
+  ## 2^n, or 0 if it doesn't fit in a byte
+  uint8((1'u16 shl n) and 0xff)
 
 type
   NbitPref = range[1 .. 8]
@@ -24,9 +28,9 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   # todo: add option to not set 2^N bit
   result = 1
   if x.uint < n.ones:
-    s.add(x.uint8 or (1'u8 shl n))
+    s.add(x.uint8 or n.bit)
     return
-  s.add(n.ones or (1'u8 shl n))
+  s.add(n.ones or n.bit)
   var x = x.uint - n.ones
   # leading 1-bit means continuation
   while x > 7.ones.uint:
