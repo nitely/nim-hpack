@@ -105,9 +105,9 @@ proc cmpTableValue(
 ): bool {.inline.} =
   let idyn = i-headersTable.len
   if i < headersTable.len:
-    strcmp(s, headersTable[i][1])
+    return strcmp(s, headersTable[i][1])
   elif idyn < dh.len:
-    cmp(dh, dh[idyn].v, s)
+    return cmp(dh, dh[idyn].v, s)
   else:
     doAssert false
 

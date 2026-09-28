@@ -1,6 +1,5 @@
 ## Dynamic headers table
 
-import std/deques
 import ./exceptions
 
 export
@@ -61,7 +60,10 @@ type DynHeaders* = object
   ## functions here take care of that
   s: string
   pos, filled: int
-  bounds: Deque[HBounds]
+  bounds: seq[HBounds]
+    ## ring of the entries' bounds, newest first;
+    ## its len is a power of 2
+  head, count: int
   size, maxSize*, initialSize, minSetSize: int
 
 func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
@@ -73,7 +75,7 @@ func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
     s: newString(strsize),
     pos: 0,
     filled: 0,
-    bounds: initDeque[HBounds](0),
+    bounds: newSeq[HBounds](16),
     size: strsize,
     maxSize: strsize,
     initialSize: strsize,
@@ -81,21 +83,25 @@ func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   )
 
 func len*(q: DynHeaders): int {.inline, raises: [].} =
-  q.bounds.len
+  q.count
 
 func clear*(q: var DynHeaders) {.inline, raises: [].} =
   ## Efficiently clear the table
   q.pos = 0
   q.filled = 0
-  q.bounds.clear()
+  q.head = 0
+  q.count = 0
   q.minSetSize = 0
 
 func reset*(q: var DynHeaders) {.deprecated.} =
   ## Deprecated, use ``clear()`` instead
   q.clear()
 
+{.push checks: off.}
 func `[]`*(q: DynHeaders, i: Natural): HBounds {.inline, raises: [].} =
-  q.bounds[i]
+  assert i < q.count
+  q.bounds[(q.head+i) and (q.bounds.len-1)]
+{.pop.}
 
 func len(hb: HBounds): int {.inline, raises: [].} =
   hb.n.len+hb.v.len
@@ -108,7 +114,8 @@ func pop(q: var DynHeaders): HBounds {.inline, raises: [].} =
   ## Return and remove header
   ## from the table in FIFO order
   doAssert q.len > 0, "empty queue"
-  result = q.bounds.popLast()
+  result = q[q.count-1]
+  dec q.count
   dec(q.filled, result.len+32)
   doAssert q.filled >= 0
 
@@ -131,7 +138,15 @@ func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
   q.pos = (q.pos+v.len) mod q.s.len
-  q.bounds.addFirst initHBounds(hbn, hbv)
+  if q.count == q.bounds.len:
+    var bounds = newSeq[HBounds](q.bounds.len*2)
+    for i in 0 ..< q.count:
+      bounds[i] = q[i]
+    q.bounds = move bounds
+    q.head = 0
+  q.head = (q.head-1) and (q.bounds.len-1)
+  q.bounds[q.head] = initHBounds(hbn, hbv)
+  inc q.count
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
@@ -157,12 +172,12 @@ func setSize*(q: var DynHeaders, strsize: Natural) {.raises: [].} =
     discard q.pop()
 
 iterator items*(q: DynHeaders): HBounds {.inline, raises: [].} =
-  for b in q.bounds:
-    yield b
+  for i in 0 ..< q.count:
+    yield q[i]
 
 iterator pairs*(q: DynHeaders): (int, HBounds) {.inline, raises: [].} =
-  for i, b in pairs q.bounds:
-    yield (i, b)
+  for i in 0 ..< q.count:
+    yield (i, q[i])
 
 func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
   doAssert x.b+1 >= x.a
@@ -174,10 +189,14 @@ func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
 func `==`*(a, b: DynHeaders): bool {.raises: [].} =
-  for x, y in fields(a, b):
-    if x != y:
+  ## Compare the entries, not the ring layout
+  for i in 0 ..< min(a.len, b.len):
+    if a[i] != b[i]:
       return false
-  true
+  a.len == b.len and a.s == b.s and
+    a.pos == b.pos and a.filled == b.filled and
+    a.size == b.size and a.maxSize == b.maxSize and
+    a.initialSize == b.initialSize and a.minSetSize == b.minSetSize
 
 func `$`*(q: DynHeaders): string {.raises: [].} =
   ## Use it for debugging purposes only.
@@ -193,7 +212,7 @@ func cmp*(
   q: DynHeaders,
   b: Slice[int32],
   s: openArray[char]
-): bool {.raises: [].} =
+): bool {.inline, raises: [].} =
   ## Efficiently compare a header name
   ## or value against a string
   if b.len != s.len:
