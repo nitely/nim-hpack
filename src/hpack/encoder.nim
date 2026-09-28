@@ -39,6 +39,18 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   s.add x.uint8
   inc result
 
+{.push checks: off.}
+func strcopy(
+  x: var openArray[byte],
+  y: openArray[char],
+  xi, yi, xyLen: int
+) {.inline, raises: [].} =
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  for i in 0 ..< xyLen:
+    x[xi+i] = byte(y[yi+i])
+{.pop.}
+
 proc strencode(
   x: openArray[char],
   s: var seq[byte],
@@ -52,13 +64,10 @@ proc strencode(
     let sLen = s.len
     inc(result, intencode(x.len, 7, s))
     s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
-    # todo: memcopy
     inc(result, x.len)
-    var i = s.len
-    s.setLen(s.len+x.len)
-    for c in x:
-      s[i] = c.uint8
-      inc i
+    let L = s.len
+    s.setLen(L+x.len)
+    strcopy(s, x, L, 0, x.len)
 
 proc litencode(
   h, v: openArray[char],
@@ -77,6 +86,18 @@ proc litencode(
     inc(result, strencode(h, s, huffman))
   inc(result, strencode(v, s, huffman))
 
+{.push checks: off.}
+func strcmp(
+  x, y: openArray[char]
+): bool {.inline, raises: [].} =
+  if x.len != y.len:
+    return false
+  var diff = 0'u8
+  for i in 0 ..< x.len:
+    diff = diff or (x[i].uint8 xor y[i].uint8)
+  diff == 0
+{.pop.}
+
 proc cmpTableValue(
   s: openArray[char],
   dh: DynHeaders,
@@ -84,9 +105,9 @@ proc cmpTableValue(
 ): bool {.inline.} =
   let idyn = i-headersTable.len
   if i < headersTable.len:
-    return s == headersTable[i][1]
+    strcmp(s, headersTable[i][1])
   elif idyn < dh.len:
-    return cmp(dh, dh[idyn].v, s)
+    cmp(dh, dh[idyn].v, s)
   else:
     doAssert false
 
@@ -130,10 +151,10 @@ proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   # disable indexing if needed
   var first = -1
   let x = staticNames[nameHash(h, staticSeed)]
-  if x.first != -1 and h == headersTable[x.first][0]:
+  if x.first != -1 and strcmp(h, headersTable[x.first][0]):
     first = x.first
     for i in x.first ..< x.first+x.count:
-      if v == headersTable[i][1]:
+      if strcmp(v, headersTable[i][1]):
         return i
   let L = headersTable.len
   for i, hb in dh.pairs:
