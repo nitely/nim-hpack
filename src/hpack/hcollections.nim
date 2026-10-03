@@ -1,7 +1,9 @@
 ## Dynamic headers table
 
 import std/deques
-import ./exceptions
+import
+  ./exceptions,
+  ./utils
 
 export
   exceptions
@@ -168,7 +170,7 @@ func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
   doAssert x.b+1 >= x.a
   let sLen = s.len
   let bLen = x.len
-  s.setLen(sLen+bLen)
+  s.setLenUninit2(sLen+bLen)
   let mLen = min(bLen, q.s.len-x.a)
   strcopy(s, q.s, sLen, x.a, mLen)
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)

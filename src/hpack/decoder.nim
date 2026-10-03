@@ -4,7 +4,8 @@ import
   ./huffman_decoder,
   ./headers_data,
   ./hcollections,
-  ./exceptions
+  ./exceptions,
+  ./utils
 
 export
   hcollections,
@@ -79,7 +80,7 @@ proc strdecode(
       raiseDecodeError("huffman error")
   else:
     let L = ss.len
-    ss.setLen(L + result-n)
+    ss.setLenUninit2(L + result-n)
     strcopy(ss, s, L, n, result-n)
 
 proc hname(
