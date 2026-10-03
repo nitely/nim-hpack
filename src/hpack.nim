@@ -8,5 +8,6 @@ import
 
 export
   encoder,
-  decoder,
-  hcollections
+  decoder
+export
+  hcollections except strhash, find, addHashed

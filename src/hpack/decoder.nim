@@ -7,8 +7,9 @@ import
   ./exceptions
 
 export
-  hcollections,
   exceptions
+export
+  hcollections except strhash, find, addHashed
 
 type
   NbitPref = range[1 .. 8]

@@ -7,8 +7,9 @@ import
   ./exceptions
 
 export
-  hcollections,
   exceptions
+export
+  hcollections except strhash, find, addHashed
 
 template ones(n: untyped): uint8 =
   assert n >= 1 and n <= 8
@@ -172,7 +173,7 @@ proc hencode*(
   # incremental indexing
   of stoYes:
     result = litencode(h, v, s, hidx, 6, huffman)
-    dh.add(h, v, nh, vh)
+    dh.addHashed(h, v, nh, vh)
   # without indexing or
   of stoNo:
     # todo: litencode for DRY-ness, needs clear bit

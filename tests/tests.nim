@@ -1,7 +1,9 @@
 import std/unittest
+import std/random
 
 import ../src/hpack/huffman_decoder
 import ../src/hpack
+import ../src/hpack/hcollections
 
 proc toBytes(s: seq[uint16]): seq[byte] =
   result = newSeqOfCap[byte](len(s) * 2)
@@ -913,3 +915,125 @@ suite "Uncategorized tests":
     var bb = newSeq[HBounds]()
     doAssertRaises(DecodeError):
       hdecodeAll(ic, decDh, s, bb)
+
+proc find(dh: var DynHeaders, n, v: string): tuple[i: int, exact: bool] =
+  dh.find(n, v, strhash(n), strhash(v))
+
+proc findLinear(dh: DynHeaders, n, v: string): tuple[i: int, exact: bool] =
+  ## Reference for ``find``
+  result = (-1, false)
+  for i in 0 ..< dh.len:
+    if dh.cmp(dh[i].n, n):
+      if dh.cmp(dh[i].v, v):
+        return (i, true)
+      if result.i == -1:
+        result = (i, false)
+
+proc randStr(rng: var Rand, a, b: int): string =
+  result = newString(rng.rand(a .. b))
+  for c in mitems result:
+    c = rng.sample(['a', 'b', 'c'])
+
+suite "Dynamic table index":
+  test "Newest duplicate wins":
+    var dh = initDynHeaders(256)
+    dh.add("a", "1")
+    dh.add("b", "2")
+    dh.add("a", "1")
+    check dh.find("a", "1") == (0, true)
+    check dh.find("a", "x") == (0, false)
+    check dh.find("b", "2") == (1, true)
+    check dh.find("b", "x") == (1, false)
+    check dh.find("c", "3") == (-1, false)
+
+  test "Evicting an older duplicate keeps the newer":
+    var dh = initDynHeaders(3*(32+2))  # fits 3 entries
+    discard dh.find("x", "x")  # build the index
+    dh.add("a", "1")
+    dh.add("b", "2")
+    dh.add("a", "1")
+    dh.add("c", "3")  # evicts the oldest a: 1
+    check dh.len == 3
+    check dh.find("a", "1") == (1, true)
+    dh.add("d", "4")  # evicts b: 2
+    check dh.find("b", "2") == (-1, false)
+    check dh.find("a", "1") == (2, true)
+    dh.add("e", "5")  # evicts the last a: 1
+    check dh.find("a", "1") == (-1, false)
+    check dh.find("a", "x") == (-1, false)
+
+  test "Index survives ring growth":
+    var dh = initDynHeaders(4096)
+    discard dh.find("x", "x")  # build the index
+    for i in 0 ..< 100:
+      dh.add("h" & $(i mod 7), $i)
+    check dh.len == 100
+    for i in 0 ..< 100:
+      check dh.find("h" & $(i mod 7), $i) == (99-i, true)
+    check dh.find("h3", "x") == (5, false)  # newest h3 is 94
+
+  test "Index survives clear and resize":
+    var dh = initDynHeaders(256)
+    dh.add("a", "1")
+    discard dh.find("x", "x")  # build the index
+    dh.clear()
+    check dh.find("a", "1") == (-1, false)
+    dh.setSize(256)
+    dh.add("a", "1")
+    dh.add("b", "2")
+    check dh.find("a", "1") == (1, true)
+    dh.setSize(34)  # evicts a: 1
+    check dh.find("a", "1") == (-1, false)
+    check dh.find("b", "2") == (0, true)
+    dh.setSize(0)
+    check dh.find("b", "2") == (-1, false)
+
+  test "Index matches a linear scan":
+    var rng = initRand(123)
+    let names = @[
+      "a", "bb", "cookie", "x-long-header-name-0123456789"]
+    var values = newSeq[string]()
+    for _ in 0 ..< 12:
+      values.add rng.randStr(1, 40)
+    for _ in 0 ..< 100:
+      var dh = initDynHeaders(rng.rand(0 .. 1500))
+      for _ in 0 ..< 300:
+        let n = rng.sample(names)
+        let v = rng.sample(values)
+        case rng.rand(0 .. 99)
+        of 0 .. 2:
+          dh.setSize(rng.rand(0 .. 1500))
+        of 3:
+          dh.clear()
+        of 4 .. 29:
+          dh.add(n, v)
+        of 30 .. 59:
+          dh.addHashed(n, v, strhash(n), strhash(v))
+        else:
+          check dh.find(n, v) == dh.findLinear(n, v)
+
+  test "Encoder round trip":
+    var rng = initRand(321)
+    let names = @[
+      ":path", "accept-encoding", "cookie", "x-foo", "x-bar"]
+    var values = @["/", "gzip, deflate"]
+    for _ in 0 ..< 10:
+      values.add rng.randStr(1, 60)
+    for _ in 0 ..< 50:
+      let size = rng.rand(64 .. 1000)
+      var encDh = initDynHeaders(size)
+      var decDh = initDynHeaders(size)
+      for _ in 0 ..< 50:
+        var ic = newSeq[byte]()
+        var expected = ""
+        for _ in 0 ..< rng.rand(1 .. 8):
+          let n = rng.sample(names)
+          let v = rng.sample(values)
+          hencode(n, v, encDh, ic,
+            rng.sample([stoYes, stoYes, stoNo, stoNever]),
+            rng.rand(1) == 0)
+          expected.add n & ": " & v & "\r\n"
+        var s = ""
+        var bb = newSeq[HBounds]()
+        hdecodeAll(ic, decDh, s, bb)
+        check s == expected
