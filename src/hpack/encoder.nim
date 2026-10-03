@@ -114,18 +114,21 @@ proc cmpTableValue(
   else:
     doAssert false
 
-func nameHash(s: openArray[char], seed: uint32): int {.inline.} =
-  var h = seed
+func fnv(s: openArray[char]): uint32 {.inline.} =
+  ## FNV-1a hash
+  result = 2166136261'u32
   for c in s:
-    h = (h xor c.uint32) * 16777619'u32
-  int(h shr 24)  # 256 slots
+    result = (result xor c.uint32) * 16777619'u32
+
+func staticSlot(h, seed: uint32): int {.inline.} =
+  int((h * seed) shr 24)  # 256 slots
 
 type StaticSlot = tuple[first, count: int8]
 
 func buildStaticNames(): (uint32, array[256, StaticSlot]) =
   ## Perfect hash of the static table names. Entries
   ## with the same name are next to each other
-  var seed = 2166136261'u32
+  var seed = 653'u32
   while true:
     var slots: array[256, StaticSlot]
     for x in mitems slots:
@@ -133,7 +136,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
     var ok = true
     var i = 0
     while ok and i < headersTable.len:
-      let slot = nameHash(headersTable[i][0], seed)
+      let slot = staticSlot(fnv(headersTable[i][0]), seed)
       ok = slots[slot].first == -1
       slots[slot] = (i.int8, 0'i8)
       while i < headersTable.len and
@@ -142,7 +145,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
         inc i
     if ok:
       return (seed, slots)
-    inc seed
+    inc(seed, 2)
 
 const (staticSeed, staticNames) = buildStaticNames()
 
@@ -153,7 +156,7 @@ proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   # encoding is controlled by user, and they can
   # disable indexing if needed
   var first = -1
-  let x = staticNames[nameHash(h, staticSeed)]
+  let x = staticNames[staticSlot(fnv(h), staticSeed)]
   if x.first != -1 and strcmp(h, headersTable[x.first][0]):
     first = x.first
     for i in x.first ..< x.first+x.count:
