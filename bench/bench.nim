@@ -91,8 +91,8 @@ proc benchDecode(name: string) =
       for c in st:
         if c.tableSize >= 0:
           dh.setSize(c.tableSize)
-        ss.setLen 0
-        bb.setLen 0
+        ss.setLenUninit 0
+        bb.setLenUninit 0
         hdecodeAll(c.wire, dh, ss, bb)
         sink += ss.len
 
@@ -111,7 +111,7 @@ proc benchEncode(name: string, store: Store, huffman: bool) =
       dh.clear()
       dh.setSize(4096)
       for c in st:
-        s.setLen 0
+        s.setLenUninit 0
         for (n, v) in c.headers:
           hencode(n, v, dh, s, store, huffman)
         sink += s.len
@@ -135,12 +135,12 @@ proc benchHuffman() =
   var e = newSeq[byte]()
   measure("huffman encode (raw bytes)", rawLen, strs.len):
     for x in strs:
-      e.setLen 0
+      e.setLenUninit 0
       sink += hcencode(x, e)
   var d = ""
   measure("huffman decode (encoded bytes)", encLen, strs.len):
     for x in encoded:
-      d.setLen 0
+      d.setLenUninit 0
       sink += hcdecode(x, d)
 
 benchHuffman()

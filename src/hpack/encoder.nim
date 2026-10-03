@@ -66,7 +66,7 @@ proc strencode(
     s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
     inc(result, x.len)
     let L = s.len
-    s.setLen(L+x.len)
+    s.setLenUninit(L+x.len)
     strcopy(s, x, L, 0, x.len)
 
 proc litencode(

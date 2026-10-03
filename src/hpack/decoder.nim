@@ -79,7 +79,7 @@ proc strdecode(
       raiseDecodeError("huffman error")
   else:
     let L = ss.len
-    ss.setLen(L + result-n)
+    ss.setLenUninit(L + result-n)
     strcopy(ss, s, L, n, result-n)
 
 proc hname(
