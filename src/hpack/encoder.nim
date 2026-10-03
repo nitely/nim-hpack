@@ -1,5 +1,7 @@
 ## HPACK encoder
 
+{.push raises: [].}
+
 import
   ./headers_data,
   ./huffman_encoder,
@@ -45,7 +47,7 @@ func strcopy(
   x: var openArray[byte],
   y: openArray[char],
   xi, yi, xyLen: int
-) {.inline, raises: [].} =
+) {.inline.} =
   assert x.len >= xi+xyLen
   assert y.len >= yi+xyLen
   for i in 0 ..< xyLen:
@@ -90,7 +92,7 @@ proc litencode(
 {.push checks: off.}
 func strcmp(
   x, y: openArray[char]
-): bool {.inline, raises: [].} =
+): bool {.inline.} =
   if x.len != y.len:
     return false
   var diff = 0'u8
@@ -179,7 +181,7 @@ proc hencode*(
   s: var seq[byte],
   store = stoYes,
   huffman = true
-): Natural {.discardable, raises: [].} =
+): Natural {.discardable.} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -211,7 +213,7 @@ proc hencode*(
 proc signalDynTableSizeUpdate*(
   s: var seq[byte],
   size: Natural
-): Natural {.discardable, raises: [].} =
+): Natural {.discardable.} =
   ## Add dynamic table size update
   ## field to the seq of bytes
   result = intencode(size, 5, s)
@@ -219,7 +221,7 @@ proc signalDynTableSizeUpdate*(
 func encodeLastResize*(
   dh: var DynHeaders,
   s: var seq[byte]
-): Natural {.discardable, raises: [].} =
+): Natural {.discardable.} =
   ## Add last dynamic table resize signal
   ## to ``s``
   doAssert dh.minSetSize <= dh.finalSetSize

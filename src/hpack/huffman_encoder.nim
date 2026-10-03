@@ -1,3 +1,5 @@
+{.push raises: [].}
+
 import ./huffman_data
 
 proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =

@@ -1,5 +1,7 @@
 ## HPACK decoder
 
+{.push raises: [].}
+
 import
   ./huffman_decoder,
   ./headers_data,
@@ -54,7 +56,7 @@ func strcopy(
   x: var openArray[char],
   y: openArray[byte],
   xi, yi, xyLen: int
-) {.inline, raises: [].} =
+) {.inline.} =
   assert x.len >= xi+xyLen
   assert y.len >= yi+xyLen
   for i in 0 ..< xyLen:

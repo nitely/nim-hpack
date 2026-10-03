@@ -832,6 +832,18 @@ suite "Uncategorized tests":
     check s == "pragma: \r\L"
     check $dh == "pragma: \r\L"
 
+  test "Empty header name":
+    var dh = initDynHeaders(4096)
+    var ic = newSeq[byte]()
+    hencode("", "x", dh, ic, huffman = false)
+    var s = ""
+    var bb = newSeq[HBounds]()
+    dh.clear()
+    hdecodeAll(ic, dh, s, bb)
+    check s == ": x\r\n"
+    check $dh == ": x\r\n"
+    check bb == @[initHBounds(0 .. -1, 2 .. 2)]
+
   test "encodeLastResize no resize":
     var ic = newSeq[byte]()
     var dh = initDynHeaders(4096)

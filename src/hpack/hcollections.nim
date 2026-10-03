@@ -46,9 +46,9 @@ type HBounds* = object
 func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
   doAssert(
     n.a in 0 .. int32.high and
-    n.b in 0 .. int32.high and
+    n.b in -1 .. int32.high and
     v.a in 0 .. int32.high and
-    v.b in 0 .. int32.high
+    v.b in -1 .. int32.high
   )
   HBounds(
     n: n.a.int32 .. n.b.int32,
@@ -393,3 +393,24 @@ when isMainModule:
     #echo $dh
     doAssert $dh ==
       "zxc: asdqw\r\L"
+  block:
+    echo "Test DynHeaders empty name at 0"
+    var dh = initDynHeaders(256)
+    dh.add("", "x")
+    doAssert dh.filled == 1+32
+    doAssert dh[0] == initHBounds(0 .. -1, 0 .. 0)
+    doAssert $dh == ": x\r\L"
+  block:
+    echo "Test DynHeaders empty value at 0"
+    var a, b = newString(32)
+    for i in 0 .. a.len-1:
+      a[i] = 'a'
+      b[i] = 'b'
+    var dh = initDynHeaders(64)
+    dh.add(a, "")
+    # evicts the first entry; the name ends
+    # at the end of the buffer, so the value is at 0
+    dh.add(b, "")
+    doAssert dh.len == 1
+    doAssert dh[0] == initHBounds(32 .. 63, 0 .. -1)
+    doAssert $dh == b & ": \r\L"
