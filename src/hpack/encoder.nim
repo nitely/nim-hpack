@@ -98,31 +98,15 @@ func strcmp(
   diff == 0
 {.pop.}
 
-proc cmpTableValue(
-  s: openArray[char],
-  dh: DynHeaders,
-  i: Natural
-): bool {.inline.} =
-  let idyn = i-headersTable.len
-  if i < headersTable.len:
-    return strcmp(s, headersTable[i][1])
-  elif idyn < dh.len:
-    return cmp(dh, dh[idyn].v, s)
-  else:
-    doAssert false
-
-func nameHash(s: openArray[char], seed: uint32): int {.inline.} =
-  var h = seed
-  for c in s:
-    h = (h xor c.uint32) * 16777619'u32
-  int(h shr 24)  # 256 slots
+func staticSlot(nh: uint64, seed: uint32): int {.inline.} =
+  int((uint32(nh shr 32) * seed) shr 24)  # 256 slots
 
 type StaticSlot = tuple[first, count: int8]
 
 func buildStaticNames(): (uint32, array[256, StaticSlot]) =
   ## Perfect hash of the static table names. Entries
   ## with the same name are next to each other
-  var seed = 2166136261'u32
+  var seed = 1'u32
   while true:
     var slots: array[256, StaticSlot]
     for x in mitems slots:
@@ -130,7 +114,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
     var ok = true
     var i = 0
     while ok and i < headersTable.len:
-      let slot = nameHash(headersTable[i][0], seed)
+      let slot = staticSlot(strhash(headersTable[i][0]), seed)
       ok = slots[slot].first == -1
       slots[slot] = (i.int8, 0'i8)
       while i < headersTable.len and
@@ -139,32 +123,30 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
         inc i
     if ok:
       return (seed, slots)
-    inc seed
+    inc(seed, 2)
 
 const (staticSeed, staticNames) = buildStaticNames()
 
-proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
-  ## Find a header name in table
-  # note linear search here is fine;
-  # for a 4KB table, there should be <100 entries;
-  # encoding is controlled by user, and they can
-  # disable indexing if needed
+proc findInTable(
+  h, v: openArray[char],
+  nh, vh: uint64,
+  dh: var DynHeaders
+): tuple[i: int, exact: bool] {.inline.} =
+  ## Find a header in the tables. Return the index of
+  ## the name and value, or else of the name, or -1
   var first = -1
-  let x = staticNames[nameHash(h, staticSeed)]
+  let x = staticNames[staticSlot(nh, staticSeed)]
   if x.first != -1 and strcmp(h, headersTable[x.first][0]):
     first = x.first
     for i in x.first ..< x.first+x.count:
       if strcmp(v, headersTable[i][1]):
-        return i
-  let L = headersTable.len
-  for i, hb in dh.pairs:
-    if not cmp(dh, hb.n, h):
-      continue
-    if cmpTableValue(v, dh, L+i):
-      return L+i
-    if first == -1:
-      first = L+i
-  return first
+        return (i, true)
+  if dh.len == 0:
+    return (first, false)
+  let (i, exact) = dh.find(h, v, nh, vh)
+  if exact or (i != -1 and first == -1):
+    return (headersTable.len+i, exact)
+  (first, false)
 
 type
   Store* = enum
@@ -179,16 +161,18 @@ proc hencode*(
   store = stoYes,
   huffman = true
 ): Natural {.discardable, raises: [].} =
-  let hidx = findInTable(h, v, dh)
+  let nh = strhash(h)
+  let vh = if dh.len > 0 or store == stoYes: strhash(v) else: 0
+  let (hidx, exact) = findInTable(h, v, nh, vh, dh)
   # Indexed
-  if hidx != -1 and cmpTableValue(v, dh, hidx):
+  if exact:
     result = intencode(hidx+1, 7, s)
     return
   case store
   # incremental indexing
   of stoYes:
     result = litencode(h, v, s, hidx, 6, huffman)
-    dh.add(h, v)
+    dh.add(h, v, nh, vh)
   # without indexing or
   of stoNo:
     # todo: litencode for DRY-ness, needs clear bit

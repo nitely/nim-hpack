@@ -32,6 +32,42 @@ func strcmp(
   diff == 0
 {.pop.}
 
+{.push checks: off.}
+template load(s: openArray[char], i: int, T: typedesc): uint64 =
+  var r = 0'u64
+  for j in 0 ..< sizeof(T):
+    r = r or (s[i+j].uint64 shl (8*j))
+  r
+
+func load64(s: openArray[char], i: int): uint64 {.inline, raises: [].} =
+  load(s, i, uint64)
+
+func load32(s: openArray[char], i: int): uint64 {.inline, raises: [].} =
+  load(s, i, uint32)
+
+func mix(h: uint64): uint64 {.inline, raises: [].} =
+  result = (h xor (h shr 32)) * 0xd6e8feb86659fd93'u64
+  result = result xor (result shr 32)
+
+func strhash*(s: openArray[char]): uint64 {.raises: [].} =
+  ## Fast non-cryptographic hash
+  const k = 0x9e3779b97f4a7c15'u64
+  var h = s.len.uint64 * k
+  var i = 0
+  while i+8 < s.len:
+    h = mix(h xor load64(s, i))
+    inc(i, 8)
+  # last 1 to 8 bytes; may overlap the previous ones
+  if s.len >= 8:
+    h = h xor load64(s, s.len-8)
+  elif s.len >= 4:
+    h = h xor (load32(s, 0) shl 32) xor load32(s, s.len-4)
+  elif s.len > 0:
+    h = h xor (s[0].uint64 shl 16) xor
+      (s[s.len shr 1].uint64 shl 8) xor s[s.len-1].uint64
+  mix(h * k)
+{.pop.}
+
 type HBounds* = object
   ## Header's name and value boundaries
   # XXX maybe this should be uint16,
@@ -65,6 +101,12 @@ type DynHeaders* = object
     ## its len is a power of 2
   head, count: int
   size, maxSize*, initialSize, minSetSize: int
+  # Hash index for ``find``. Each key maps to the newest entry with that key
+  keys: seq[uint64]
+    ## ring parallel to ``bounds``; the entry's
+    ## name key and name+value key (32 bits each)
+  slots: seq[uint64]
+    ## open addressing; key shl 32 or ring pos+1, 0 is empty
 
 func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
@@ -92,6 +134,8 @@ func clear*(q: var DynHeaders) {.inline, raises: [].} =
   q.head = 0
   q.count = 0
   q.minSetSize = 0
+  for x in mitems q.slots:
+    x = 0
 
 func reset*(q: var DynHeaders) {.deprecated.} =
   ## Deprecated, use ``clear()`` instead
@@ -106,6 +150,67 @@ func `[]`*(q: DynHeaders, i: Natural): HBounds {.inline, raises: [].} =
 func len(hb: HBounds): int {.inline, raises: [].} =
   hb.n.len+hb.v.len
 
+{.push checks: off.}
+func keysOf(nh, vh: uint64): uint64 {.inline, raises: [].} =
+  let pk = uint32(mix(nh * 0x9e3779b97f4a7c15'u64 xor vh))
+  (nh and 0xffff_ffff'u64) shl 32 or pk
+
+func nameKey(keys: uint64): uint64 {.inline, raises: [].} =
+  keys shr 32
+
+func pairKey(keys: uint64): uint64 {.inline, raises: [].} =
+  keys and 0xffff_ffff'u64
+
+func ringPos(q: DynHeaders, i: int): int {.inline, raises: [].} =
+  (q.head+i) and (q.bounds.len-1)
+
+func probe(q: DynHeaders, key: uint64): int {.inline, raises: [].} =
+  ## Return the slot of ``key``, or the empty slot
+  ## where it would go. The load is <= 50%,
+  ## so there is always an empty slot
+  let mask = q.slots.len-1
+  result = key.int and mask
+  while q.slots[result] != 0 and q.slots[result] shr 32 != key:
+    result = (result+1) and mask
+
+func slotPos(q: DynHeaders, key: uint64): int {.inline, raises: [].} =
+  ## Return the ring pos of ``key``'s entry, or -1
+  int(q.slots[q.probe(key)] and 0xffff_ffff'u64)-1
+
+func index(q: var DynHeaders, key: uint64, pos: int) {.raises: [].} =
+  ## Point the slot of ``key`` at ``pos``
+  q.slots[q.probe(key)] = key shl 32 or uint64(pos+1)
+
+func unindex(q: var DynHeaders, key: uint64, pos: int) {.raises: [].} =
+  ## Remove the slot of ``key`` if it points at ``pos``.
+  ## Backward-shift delete, so there are no tombstones
+  let mask = q.slots.len-1
+  var i = q.probe(key)
+  if q.slots[i] != (key shl 32 or uint64(pos+1)):
+    return
+  var j = i
+  while true:
+    j = (j+1) and mask
+    if q.slots[j] == 0:
+      break
+    let home = int(q.slots[j] shr 32) and mask
+    if ((j-home) and mask) >= ((j-i) and mask):
+      q.slots[i] = q.slots[j]
+      i = j
+  q.slots[i] = 0
+{.pop.}
+
+func reindex(q: var DynHeaders) {.raises: [].} =
+  ## Size the index for ``bounds`` and fill it
+  q.keys.setLen q.bounds.len
+  q.slots.setLen q.bounds.len*4  # two keys per entry, <= 50% load
+  for x in mitems q.slots:
+    x = 0
+  for i in countdown(q.count-1, 0):
+    let pos = q.ringPos(i)
+    q.index(q.keys[pos].nameKey, pos)
+    q.index(q.keys[pos].pairKey, pos)
+
 func left(q: DynHeaders): Natural {.inline, raises: [].} =
   ## Return available space
   q.size-q.filled
@@ -115,14 +220,21 @@ func pop(q: var DynHeaders): HBounds {.inline, raises: [].} =
   ## from the table in FIFO order
   doAssert q.len > 0, "empty queue"
   result = q[q.count-1]
+  if q.slots.len > 0:
+    let pos = q.ringPos(q.count-1)
+    q.unindex(q.keys[pos].nameKey, pos)
+    q.unindex(q.keys[pos].pairKey, pos)
   dec q.count
   dec(q.filled, result.len+32)
   doAssert q.filled >= 0
 
-func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
-  ## Add a header name and value to the table.
-  ## Evicts entries that no longer fit.
-  ## Items are added and removed in FIFO order
+func add*(
+  q: var DynHeaders,
+  n, v: openArray[char],
+  nh, vh: uint64
+) {.raises: [].} =
+  ## Same as ``add(q, n, v)``. ``nh`` and ``vh``
+  ## must be ``strhash(n)`` and ``strhash(v)``
   let nvLen = v.len + n.len
   while q.len > 0 and nvLen > q.left-32:
     discard q.pop()
@@ -132,23 +244,46 @@ func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
   let nLen = min(n.len, q.s.len-q.pos)
   strcopy(q.s, n, q.pos, 0, nLen)
   strcopy(q.s, n, 0, nLen, n.len-nLen)
-  q.pos = (q.pos+n.len) mod q.s.len
+  q.pos = q.pos+n.len  # n.len <= q.s.len
+  if q.pos >= q.s.len:
+    q.pos -= q.s.len
   let hbv = q.pos .. q.pos+v.len-1
   let vLen = min(v.len, q.s.len-q.pos)
   strcopy(q.s, v, q.pos, 0, vLen)
   strcopy(q.s, v, 0, vLen, v.len-vLen)
-  q.pos = (q.pos+v.len) mod q.s.len
+  q.pos = q.pos+v.len
+  if q.pos >= q.s.len:
+    q.pos -= q.s.len
   if q.count == q.bounds.len:
     var bounds = newSeq[HBounds](q.bounds.len*2)
+    var keys = newSeq[uint64](if q.slots.len > 0: bounds.len else: 0)
     for i in 0 ..< q.count:
       bounds[i] = q[i]
+      if q.slots.len > 0:
+        keys[i] = q.keys[q.ringPos(i)]
     q.bounds = move bounds
+    q.keys = move keys
     q.head = 0
+    if q.slots.len > 0:
+      q.reindex()
   q.head = (q.head-1) and (q.bounds.len-1)
   q.bounds[q.head] = initHBounds(hbn, hbv)
   inc q.count
+  if q.slots.len > 0:
+    q.keys[q.head] = keysOf(nh, vh)
+    q.index(q.keys[q.head].nameKey, q.head)
+    q.index(q.keys[q.head].pairKey, q.head)
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
+
+func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
+  ## Add a header name and value to the table.
+  ## Evicts entries that no longer fit.
+  ## Items are added and removed in FIFO order
+  if q.slots.len > 0:
+    q.add(n, v, strhash(n), strhash(v))
+  else:
+    q.add(n, v, 0, 0)
 
 func setSize*(q: var DynHeaders, strsize: Natural) {.raises: [].} =
   ## Resize the total headers max length.
@@ -223,6 +358,40 @@ func cmp*(
     strcmp(s, q.s, mLen, 0, b.len-mLen)
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
+
+func buildIndex(q: var DynHeaders) {.raises: [].} =
+  q.keys.setLen q.bounds.len
+  var n, v = ""
+  for i in 0 ..< q.count:
+    n.setLen 0
+    v.setLen 0
+    q.substr(n, q[i].n)
+    q.substr(v, q[i].v)
+    q.keys[q.ringPos(i)] = keysOf(strhash(n), strhash(v))
+  q.reindex()
+
+func find*(
+  q: var DynHeaders,
+  n, v: openArray[char],
+  nh, vh: uint64
+): tuple[i: int, exact: bool] {.raises: [].} =
+  ## Return the index of the newest entry matching
+  ## name and value, or else the newest matching name,
+  ## or -1. ``nh`` and ``vh`` must be
+  ## ``strhash(n)`` and ``strhash(v)``
+  if q.slots.len == 0:
+    q.buildIndex()
+  if q.count == 0:
+    return (-1, false)
+  # keys may collide, so compare the strings
+  let keys = keysOf(nh, vh)
+  var pos = q.slotPos(keys.pairKey)
+  if pos != -1 and q.cmp(q.bounds[pos].n, n) and q.cmp(q.bounds[pos].v, v):
+    return ((pos-q.head) and (q.bounds.len-1), true)
+  pos = q.slotPos(keys.nameKey)
+  if pos != -1 and q.cmp(q.bounds[pos].n, n):
+    return ((pos-q.head) and (q.bounds.len-1), false)
+  (-1, false)
 
 func minSetSize*(q: DynHeaders): int {.raises: [].} =
   q.minSetSize
