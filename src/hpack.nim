@@ -3,8 +3,12 @@
 
 import
   ./hpack/encoder,
-  ./hpack/decoder
+  ./hpack/decoder,
+  ./hpack/hcollections
 
 export
   encoder,
   decoder
+
+func clear*(dh: var Hpack) =
+  hcollections.clear(dh)

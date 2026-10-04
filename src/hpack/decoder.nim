@@ -14,9 +14,7 @@ export
   HpackBound,
   initHpackBound,
   Hpack,
-  initHpack,
-  setSize,
-  clear
+  initHpack
 
 type
   NbitPref = range[1 .. 8]
@@ -243,6 +241,9 @@ proc hdecode*(
     nn = nn.a+L .. nn.b+L
     vv = vv.a+L .. vv.b+L
 
+func setSize*(dh: var Hpack, dhSize: int) =
+  hcollections.setSize(dh, dhSize)
+
 proc hdecodeAll*(
   s: openArray[byte],
   dh: var Hpack,
@@ -263,7 +264,7 @@ proc hdecodeAll*(
       dh, ss, nn, vv, dhSize
     )
     if dhSize > -1:
-      dh.setSize dhSize
+      hcollections.setSize(dh, dhSize)
     else:
       bb.add initHpackBound(nn, vv)
   assert i == s.len

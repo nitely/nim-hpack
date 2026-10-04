@@ -222,6 +222,12 @@ func encodeLastResize*(
   if dh.finalSetSize != dh.minSetSize:
     result += signalDynTableSizeUpdate(s, dh.finalSetSize)
 
+func clearLastResize*(dh: var Hpack) =
+  hcollections.clearLastResize(dh)
+
+func hasResized*(dh: Hpack): bool =
+  hcollections.hasResized(dh)
+
 when isMainModule:
   block:
     echo "Test Encoding 10 Using a 5-Bit Prefix"
