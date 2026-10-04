@@ -9,11 +9,4 @@ import
 export
   encoder,
   decoder,
-  # hcollections
-  clear,
-  len,
-  finalSetSize,
-  minSetSize,
-  clearLastResize,
-  hasResized,
-  setSize
+  hcollections
