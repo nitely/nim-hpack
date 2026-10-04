@@ -12,6 +12,7 @@ type
     # XXX maybe this should be uint16,
     #     but it'll limit the size to 32KB
     n*, v*: Slice[int32]
+  HBounds* = HpackBound
 
 func initHpackBound*(n, v: Slice[int]): HpackBound {.inline.} =
   doAssert(
@@ -24,6 +25,9 @@ func initHpackBound*(n, v: Slice[int]): HpackBound {.inline.} =
     n: n.a.int32 .. n.b.int32,
     v: v.a.int32 .. v.b.int32
   )
+
+func initHBounds*(n, v: Slice[int]): HBounds {.deprecated: "use initHpackBound".} =
+  initHpackBound(n, v)
 
 type
   Hpack* = object
@@ -38,6 +42,7 @@ type
     pos, filled: int
     bounds: Ring[HpackBound]
     size, maxSize*, initialSize, minSetSize: int
+  DynHeaders* = Hpack
 
 func initHpack*(strsize: int): Hpack {.inline.} =
   ## Initialize a dynamic headers table.
@@ -53,6 +58,9 @@ func initHpack*(strsize: int): Hpack {.inline.} =
     initialSize: strsize,
     minSetSize: strsize
   )
+
+func initDynHeaders*(strsize: int): DynHeaders {.deprecated: "use initHpack".} =
+  initHpack(strsize)
 
 func len*(q: Hpack): int {.inline.} =
   q.bounds.len
