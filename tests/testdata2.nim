@@ -17,7 +17,7 @@ proc testCase(theDir: string) =
   var checked = 0
   for fname in paths:
     let jsonNode = parseJson(readFile(dir & "/" & fname))
-    var headersDec = initDynHeaders(4096)
+    var headersDec = initHpack(4096)
     for cases in jsonNode["cases"]:
       var headers = ""
       for hs in cases["headers"]:
@@ -35,7 +35,7 @@ proc testCase(theDir: string) =
         if decSize >= 0:
           headersDec.setSize decSize
       var ss = ""
-      var bb = newSeq[HBounds]()
+      var bb = newSeq[HpackBound]()
       #echo fname & " wire: " & wire
       hdecodeAll(wireBytes, headersDec, ss, bb)
       #echo ss
@@ -60,8 +60,8 @@ proc testCase2(theDir: string, store: Store, huffman: bool) =
   var checked = 0
   for fname in paths:
     let jsonNode = parseJson(readFile(dir & "/" & fname))
-    var headersEnc = initDynHeaders(4096)
-    var headersDec = initDynHeaders(4096)
+    var headersEnc = initHpack(4096)
+    var headersDec = initHpack(4096)
     for cases in jsonNode["cases"]:
       var ic = newSeq[byte]()
       var headers = ""
@@ -75,7 +75,7 @@ proc testCase2(theDir: string, store: Store, huffman: bool) =
             n, v.getStr(), headersEnc, ic, store = store, huffman = huffman
           )
       var ss = ""
-      var bb = newSeq[HBounds]()
+      var bb = newSeq[HpackBound]()
       hdecodeAll(ic, headersDec, ss, bb)
       #echo headers
       #echo ss

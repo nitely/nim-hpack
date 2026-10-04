@@ -80,9 +80,9 @@ proc benchDecode(name: string) =
     for c in st:
       wireLen += c.wire.len
       nHeaders += c.headers.len
-  var dh = initDynHeaders(4096)
-  var ss = ""
-  var bb = newSeq[HBounds]()
+  var dh = initHpack(4096)
+  var ss = newSeq[byte]()
+  var bb = newSeq[HpackBound]()
   measure("decode " & name, wireLen, nHeaders):
     for st in stories:
       dh.clear()
@@ -103,7 +103,7 @@ proc benchEncode(name: string, store: Store, huffman: bool) =
       nHeaders += c.headers.len
       for (n, v) in c.headers:
         rawLen += n.len + v.len
-  var dh = initDynHeaders(4096)
+  var dh = initHpack(4096)
   var s = newSeq[byte]()
   measure("encode " & name & " " & $store & " huffman=" & $huffman, rawLen, nHeaders):
     for st in stories:
@@ -117,12 +117,12 @@ proc benchEncode(name: string, store: Store, huffman: bool) =
 
 proc benchHuffman() =
   let stories = loadStories("raw-data")
-  var strs: seq[string]
+  var strs: seq[seq[byte]]
   var rawLen = 0
   for st in stories:
     for c in st:
       for (n, v) in c.headers:
-        strs.add v
+        strs.add @(v.toOpenArrayByte(0, v.high))
         rawLen += v.len
   var encoded: seq[seq[byte]]
   var encLen = 0
@@ -136,7 +136,7 @@ proc benchHuffman() =
     for x in strs:
       e.setLenUninit2 0
       sink += hcencode(x, e)
-  var d = ""
+  var d = newSeq[byte]()
   measure("huffman decode (encoded bytes)", encLen, strs.len):
     for x in encoded:
       d.setLenUninit2 0

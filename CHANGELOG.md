@@ -1,3 +1,12 @@
+# v0.6.0
+
+* Bytes APIs
+* Rename DynHeaders -> Hpack
+* Rename initDynHeaders -> initHpack
+* Rename HBounds -> HpackBound
+* Rename initHBounds -> initHpackBound
+* ^ old aliases kept for backward compat
+
 # v0.5.0
 
 * Bug fixes for Nim >= 2.2.8

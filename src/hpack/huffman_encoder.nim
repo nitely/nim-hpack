@@ -2,7 +2,7 @@
 
 import ./huffman_data
 
-proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
+proc hcencodeLen*(s: openArray[byte]): int {.inline.} =
   result = 0
   var sLen = 0
   for c in s:
@@ -12,7 +12,7 @@ proc hcencodeLen*(s: openArray[char]): Natural {.inline.} =
 
 # todo: align + copy bytes? but chars
 #       are usually < a single byte, so meh
-proc hcencode*(s: openArray[char], e: var seq[byte]): Natural {.inline.} =
+proc hcencode*(s: openArray[byte], e: var seq[byte]): int {.inline.} =
   result = e.len
   var
     i = e.len
@@ -45,37 +45,37 @@ when isMainModule:
   block:
     var
       e = newSeq[byte]()
-      s = ""
-    doAssert hcencode("a", e) == "a".hcencodeLen
+      s = newSeq[byte]()
+    doAssert hcencode(['a'.byte], e) == hcencodeLen(['a'.byte])
     doAssert hcdecode(e, s) != -1
-    doAssert s == "a"
+    doAssert s == @['a'.byte]
   block:
     var
       e = newSeq[byte]()
-      s = ""
-    for c in 0'u8.char .. 255'u8.char:
+      s = newSeq[byte]()
+    for c in 0'u8 .. 255'u8:
       e.setLen(0)
       s.setLen(0)
-      doAssert hcencode("" & c, e) == hcencodeLen("" & c)
+      doAssert hcencode([c], e) == hcencodeLen([c])
       doAssert hcdecode(e, s) != -1
-      doAssert s == "" & c
+      doAssert s == @[c]
   block:
     var
       e = newSeq[byte]()
-      s = ""
-    for c in 0'u8.char .. 255'u8.char:
-      for c2 in 0'u8.char .. 255'u8.char:
+      s = newSeq[byte]()
+    for c in 0'u8 .. 255'u8:
+      for c2 in 0'u8 .. 255'u8:
         e.setLen(0)
         s.setLen(0)
-        doAssert hcencode("" & c & c2, e) == hcencodeLen("" & c & c2)
+        doAssert hcencode([c, c2], e) == hcencodeLen([c, c2])
         doAssert hcdecode(e, s) != -1
-        doAssert s == "" & c & c2
+        doAssert s == @[c, c2]
   block:
     var
       e = newSeq[byte]()
-      s = ""
-      res = ""
-    for c in 0'u8.char .. 255'u8.char:
+      s = newSeq[byte]()
+      res = newSeq[byte]()
+    for c in 0'u8 .. 255'u8:
       s.add(c)
     doAssert hcencode(s, e) == s.hcencodeLen
     doAssert hcdecode(e, res) != -1
@@ -83,14 +83,14 @@ when isMainModule:
   block:
     var
       e = newSeq[byte]()
-      s = ""
-      res = ""
+      s = newSeq[byte]()
+      res = newSeq[byte]()
     for c in 'a' .. 'z':
-      s.add(c)
+      s.add(c.byte)
     for c in 'A' .. 'Z':
-      s.add(c)
+      s.add(c.byte)
     for c in '0' .. '9':
-      s.add(c)
+      s.add(c.byte)
     doAssert hcencode(s, e) == s.hcencodeLen
     doAssert hcdecode(e, res) != -1
     doAssert s == res

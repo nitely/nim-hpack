@@ -10,8 +10,8 @@ import
   ./utils
 
 export
-  hcollections,
-  exceptions
+  exceptions,
+  hcollections
 
 type
   NbitPref = range[1 .. 8]
@@ -20,7 +20,11 @@ type
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)
 
-proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline, raises: [DecodeError].} =
+proc intdecode(
+  s: openArray[byte],
+  n: NbitPref,
+  d: var int
+): int {.inline, raises: [DecodeError].} =
   ## Return number of consumed octets.
   ## ``n`` param is the N-bit prefix.
   ## Decoded int is assigned to ``d``
@@ -51,21 +55,9 @@ proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline, raise
   if cb shr 7 == 1:
     raiseDecodeError("continuation byte without continuation")
 
-{.push checks: off.}
-func strcopy(
-  x: var openArray[char],
-  y: openArray[byte],
-  xi, yi, xyLen: int
-) {.inline.} =
-  assert x.len >= xi+xyLen
-  assert y.len >= yi+xyLen
-  for i in 0 ..< xyLen:
-    x[xi+i] = char(y[yi+i])
-{.pop.}
-
 proc strdecode(
   s: openArray[byte],
-  ss: var string
+  ss: var seq[byte]
 ): int {.inline, raises: [DecodeError].} =
   ## Decode a literal string.
   ## Return number of consumed octets.
@@ -86,9 +78,9 @@ proc strdecode(
     strcopy(ss, s, L, n, result-n)
 
 proc hname(
-  dh: DynHeaders,
-  i: Natural,
-  ss: var string,
+  dh: Hpack,
+  i: int,
+  ss: var seq[byte],
   nn: var Slice[int]
 ) {.inline, raises: [DecodeError].} =
   ## Add header's name of static/dynamic table
@@ -98,19 +90,19 @@ proc hname(
   let i = i-1
   let idyn = i-headersTable.len
   if i < len(headersTable):
-    ss.add headersTable[i][0]
+    ss.add headersTable[i][0].asBytes
   elif idyn < dh.len:
     substr(dh, ss, dh[idyn].n)
   else:
     raiseDecodeError("dyn header name not found")
   nn = L .. ss.len-1
-  ss.add ':'
-  ss.add ' '
+  ss.add ':'.byte
+  ss.add ' '.byte
 
 proc header(
-  dh: DynHeaders,
-  i: Natural,
-  ss: var string,
+  dh: Hpack,
+  i: int,
+  ss: var seq[byte],
   nn, vv: var Slice[int]
 ) {.inline, raises: [DecodeError].} =
   ## Add header of static/dynamic table
@@ -120,37 +112,37 @@ proc header(
   let idyn = i-headersTable.len
   if i < headersTable.len:
     nn.a = ss.len
-    ss.add headersTable[i][0]
+    ss.add headersTable[i][0].asBytes
     nn.b = ss.len-1
-    ss.add ':'
-    ss.add ' '
+    ss.add ':'.byte
+    ss.add ' '.byte
     vv.a = ss.len
-    ss.add headersTable[i][1]
+    ss.add headersTable[i][1].asBytes
     vv.b = ss.len-1
-    ss.add '\r'
-    ss.add '\n'
+    ss.add '\r'.byte
+    ss.add '\n'.byte
   elif idyn < dh.len:
     nn.a = ss.len
     dh.substr(ss, dh[idyn].n)
     nn.b = ss.len-1
-    ss.add ':'
-    ss.add ' '
+    ss.add ':'.byte
+    ss.add ' '.byte
     vv.a = ss.len
     dh.substr(ss, dh[idyn].v)
     vv.b = ss.len-1
-    ss.add '\r'
-    ss.add '\n'
+    ss.add '\r'.byte
+    ss.add '\n'.byte
   else:
     raiseDecodeError("dyn header not found")
 
 proc litdecode(
   s: openArray[byte],
-  dh: var DynHeaders,
-  ss: var string,
+  dh: var Hpack,
+  ss: var seq[byte],
   nn, vv: var Slice[int],
   np: NbitPref,
   store: bool
-): Natural {.inline, raises: [DecodeError].} =
+): int {.inline, raises: [DecodeError].} =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or
@@ -166,8 +158,8 @@ proc litdecode(
     let L = ss.len
     let nh = strdecode(toOpenArray(s, result, s.len-1), ss)
     nn = L .. ss.len-1
-    ss.add ':'
-    ss.add ' '
+    ss.add ':'.byte
+    ss.add ' '.byte
     if result > int.high-nh:
       raiseDecodeError("overflow")
     inc(result, nh)
@@ -176,8 +168,8 @@ proc litdecode(
   let L = ss.len
   let nv = strdecode(toOpenArray(s, result, s.len-1), ss)
   vv = L .. ss.len-1
-  ss.add '\r'
-  ss.add '\n'
+  ss.add '\r'.byte
+  ss.add '\n'.byte
   if result > int.high-nv:
     raiseDecodeError("overflow")
   inc(result, nv)
@@ -189,11 +181,11 @@ proc litdecode(
 
 proc hdecode*(
   s: openArray[byte],
-  dh: var DynHeaders,
-  ss: var string,
+  dh: var Hpack,
+  ss: var seq[byte],
   nn, vv: var Slice[int],
   dhSize: var int
-): Natural {.raises: [DecodeError].} =
+): int {.raises: [DecodeError].} =
   ## Decode a single header.
   ## Return number of consumed octets.
   ## ``s`` bytes sequence must not be empty.
@@ -230,11 +222,27 @@ proc hdecode*(
     return
   raiseDecodeError("unknown octet prefix")
 
+proc hdecode*(
+  s: openArray[byte],
+  dh: var Hpack,
+  ss: var string,
+  nn, vv: var Slice[int],
+  dhSize: var int
+): int {.raises: [DecodeError].} =
+  ## Compat; slower than the ``seq[byte]`` version
+  let L = ss.len
+  var b = newSeq[byte]()
+  defer: ss.add b.toString
+  result = hdecode(s, dh, b, nn, vv, dhSize)
+  if dhSize == -1:
+    nn = nn.a+L .. nn.b+L
+    vv = vv.a+L .. vv.b+L
+
 proc hdecodeAll*(
   s: openArray[byte],
-  dh: var DynHeaders,
-  ss: var string,
-  bb: var seq[HBounds]
+  dh: var Hpack,
+  ss: var seq[byte],
+  bb: var seq[HpackBound]
 ) {.raises: [DecodeError].} =
   ## Decode all headers from the blob of bytes
   ## ``s`` and stores it into a decoded string``d``.
@@ -250,10 +258,21 @@ proc hdecodeAll*(
       dh, ss, nn, vv, dhSize
     )
     if dhSize > -1:
-      dh.setSize dhSize
+      hcollections.setSize(dh, dhSize)
     else:
-      bb.add initHBounds(nn, vv)
+      bb.add initHpackBound(nn, vv)
   assert i == s.len
+
+proc hdecodeAll*(
+  s: openArray[byte],
+  dh: var Hpack,
+  ss: var string,
+  bb: var seq[HpackBound]
+) {.raises: [DecodeError].} =
+  ## Compat; slower than the ``seq[byte]`` version
+  var b = @(ss.asBytes)
+  defer: ss = b.toString
+  hdecodeAll(s, dh, b, bb)
 
 when isMainModule:
   block:
@@ -334,9 +353,9 @@ when isMainModule:
         0b01101101, 0b00101101,
         0b01101011, 0b01100101,
         0b01111001]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "custom-key")
+    doAssert(s.toString == "custom-key")
   block:
     var
       ic = @[
@@ -347,9 +366,9 @@ when isMainModule:
         0b01101000, 0b01100101,
         0b01100001, 0b01100100,
         0b01100101, 0b01110010]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "custom-header")
+    doAssert(s.toString == "custom-header")
   block:
     var
       ic = @[
@@ -360,9 +379,9 @@ when isMainModule:
         0b00101111, 0b01110000,
         0b01100001, 0b01110100,
         0b01101000]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "/sample/path")
+    doAssert(s.toString == "/sample/path")
   block:
     var
       ic = @[
@@ -371,9 +390,9 @@ when isMainModule:
         0b01110011, 0b01110111,
         0b01101111, 0b01110010,
         0b01100100]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "password")
+    doAssert(s.toString == "password")
   block:
     var
       ic = @[
@@ -381,9 +400,9 @@ when isMainModule:
         0b01100101, 0b01100011,
         0b01110010, 0b01100101,
         0b01110100]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "secret")
+    doAssert(s.toString == "secret")
   block:
     var
       ic = @[
@@ -395,9 +414,9 @@ when isMainModule:
         0b01101100, 0b01100101,
         0b00101110, 0b01100011,
         0b01101111, 0b01101101]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "www.example.com")
+    doAssert(s.toString == "www.example.com")
   block:
     var
       ic = @[
@@ -406,9 +425,9 @@ when isMainModule:
         0b01100011, 0b01100001,
         0b01100011, 0b01101000,
         0b01100101]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "no-cache")
+    doAssert(s.toString == "no-cache")
   block:
     echo "Test Request Examples with Huffman Coding"
     var
@@ -420,6 +439,6 @@ when isMainModule:
         0b10100000, 0b10101011,
         0b10010000, 0b11110100,
         0b11111111]
-      s = ""
+      s = newSeq[byte]()
     doAssert(strdecode(ic, s) == ic.len)
-    doAssert(s == "www.example.com")
+    doAssert(s.toString == "www.example.com")
