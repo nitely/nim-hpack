@@ -11,8 +11,7 @@ import
 
 export
   exceptions,
-  Hpack,
-  initHpack
+  hcollections
 
 template ones(n: untyped): uint8 =
   assert n >= 1 and n <= 8

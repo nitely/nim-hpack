@@ -11,10 +11,7 @@ import
 
 export
   exceptions,
-  HpackBound,
-  initHpackBound,
-  Hpack,
-  initHpack
+  hcollections
 
 type
   NbitPref = range[1 .. 8]
