@@ -8,7 +8,12 @@ import
 
 export
   encoder,
-  decoder
-
-func clear*(dh: var Hpack) =
-  hcollections.clear(dh)
+  decoder,
+  # hcollections
+  clear,
+  len,
+  finalSetSize,
+  minSetSize,
+  clearLastResize,
+  hasResized,
+  setSize

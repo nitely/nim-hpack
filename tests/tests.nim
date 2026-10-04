@@ -1,7 +1,6 @@
 import std/unittest
 
 import ../src/hpack/huffman_decoder
-import ../src/hpack/hcollections
 import ../src/hpack
 
 proc toBytes(s: seq[uint16]): seq[byte] =

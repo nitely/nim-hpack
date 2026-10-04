@@ -241,9 +241,6 @@ proc hdecode*(
     nn = nn.a+L .. nn.b+L
     vv = vv.a+L .. vv.b+L
 
-func setSize*(dh: var Hpack, dhSize: int) =
-  hcollections.setSize(dh, dhSize)
-
 proc hdecodeAll*(
   s: openArray[byte],
   dh: var Hpack,
