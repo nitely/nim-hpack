@@ -5,7 +5,7 @@
   * Rename DynHeaders -> Hpack
   * Rename initDynHeaders -> initHpack
   * Rename HBounds -> HpackBound
-  * `hpack` no longer exports `hpack/hcollections`
+  * Rename initHBounds -> initHpackBound
 
 # v0.5.0
 
