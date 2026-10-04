@@ -1,10 +1,13 @@
 ## HPACK encoder
 
+{.push raises: [].}
+
 import
   ./headers_data,
   ./huffman_encoder,
   ./hcollections,
-  ./exceptions
+  ./exceptions,
+  ./utils
 
 export
   hcollections,
@@ -39,6 +42,18 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   s.add x.uint8
   inc result
 
+{.push checks: off.}
+func strcopy(
+  x: var openArray[byte],
+  y: openArray[char],
+  xi, yi, xyLen: int
+) {.inline.} =
+  assert x.len >= xi+xyLen
+  assert y.len >= yi+xyLen
+  for i in 0 ..< xyLen:
+    x[xi+i] = byte(y[yi+i])
+{.pop.}
+
 proc strencode(
   x: openArray[char],
   s: var seq[byte],
@@ -52,13 +67,10 @@ proc strencode(
     let sLen = s.len
     inc(result, intencode(x.len, 7, s))
     s[sLen] = s[sLen] and 7.ones  # clear 2^N bit
-    # todo: memcopy
     inc(result, x.len)
-    var i = s.len
-    s.setLen(s.len+x.len)
-    for c in x:
-      s[i] = c.uint8
-      inc i
+    let L = s.len
+    s.setLenUninit2(L+x.len)
+    strcopy(s, x, L, 0, x.len)
 
 proc litencode(
   h, v: openArray[char],
@@ -77,6 +89,18 @@ proc litencode(
     inc(result, strencode(h, s, huffman))
   inc(result, strencode(v, s, huffman))
 
+{.push checks: off.}
+func strcmp(
+  x, y: openArray[char]
+): bool {.inline.} =
+  if x.len != y.len:
+    return false
+  var diff = 0'u8
+  for i in 0 ..< x.len:
+    diff = diff or (x[i].uint8 xor y[i].uint8)
+  diff == 0
+{.pop.}
+
 proc cmpTableValue(
   s: openArray[char],
   dh: DynHeaders,
@@ -86,22 +110,25 @@ proc cmpTableValue(
   if i < headersTable.len:
     return s == headersTable[i][1]
   elif idyn < dh.len:
-    return cmp(dh, dh[idyn].v, s)
+    return cmpV(dh, idyn, s)
   else:
     doAssert false
 
-func nameHash(s: openArray[char], seed: uint32): int {.inline.} =
-  var h = seed
+func fnv(s: openArray[char]): uint32 {.inline.} =
+  ## FNV-1a hash
+  result = 2166136261'u32
   for c in s:
-    h = (h xor c.uint32) * 16777619'u32
-  int(h shr 24)  # 256 slots
+    result = (result xor c.uint32) * 16777619'u32
+
+func staticSlot(h, seed: uint32): int {.inline.} =
+  int((h * seed) shr 24)  # 256 slots
 
 type StaticSlot = tuple[first, count: int8]
 
 func buildStaticNames(): (uint32, array[256, StaticSlot]) =
   ## Perfect hash of the static table names. Entries
   ## with the same name are next to each other
-  var seed = 2166136261'u32
+  var seed = 653'u32
   while true:
     var slots: array[256, StaticSlot]
     for x in mitems slots:
@@ -109,7 +136,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
     var ok = true
     var i = 0
     while ok and i < headersTable.len:
-      let slot = nameHash(headersTable[i][0], seed)
+      let slot = staticSlot(fnv(headersTable[i][0]), seed)
       ok = slots[slot].first == -1
       slots[slot] = (i.int8, 0'i8)
       while i < headersTable.len and
@@ -118,7 +145,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
         inc i
     if ok:
       return (seed, slots)
-    inc seed
+    inc(seed, 2)
 
 const (staticSeed, staticNames) = buildStaticNames()
 
@@ -129,15 +156,15 @@ proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   # encoding is controlled by user, and they can
   # disable indexing if needed
   var first = -1
-  let x = staticNames[nameHash(h, staticSeed)]
-  if x.first != -1 and h == headersTable[x.first][0]:
+  let x = staticNames[staticSlot(fnv(h), staticSeed)]
+  if x.first != -1 and strcmp(h, headersTable[x.first][0]):
     first = x.first
     for i in x.first ..< x.first+x.count:
-      if v == headersTable[i][1]:
+      if strcmp(v, headersTable[i][1]):
         return i
   let L = headersTable.len
-  for i, hb in dh.pairs:
-    if not cmp(dh, hb.n, h):
+  for i in 0 ..< dh.len:
+    if not cmpN(dh, i, h):
       continue
     if cmpTableValue(v, dh, L+i):
       return L+i
@@ -157,7 +184,7 @@ proc hencode*(
   s: var seq[byte],
   store = stoYes,
   huffman = true
-): Natural {.discardable, raises: [].} =
+): Natural {.discardable.} =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -189,7 +216,7 @@ proc hencode*(
 proc signalDynTableSizeUpdate*(
   s: var seq[byte],
   size: Natural
-): Natural {.discardable, raises: [].} =
+): Natural {.discardable.} =
   ## Add dynamic table size update
   ## field to the seq of bytes
   result = intencode(size, 5, s)
@@ -197,7 +224,7 @@ proc signalDynTableSizeUpdate*(
 func encodeLastResize*(
   dh: var DynHeaders,
   s: var seq[byte]
-): Natural {.discardable, raises: [].} =
+): Natural {.discardable.} =
   ## Add last dynamic table resize signal
   ## to ``s``
   doAssert dh.minSetSize <= dh.finalSetSize

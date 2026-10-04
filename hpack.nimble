@@ -14,6 +14,7 @@ task gen, "Gen data":
 
 task test, "Test":
   exec "nim c -r -o:bin/hpack src/hpack.nim"
+  exec "nim c -r src/hpack/ring.nim"
   exec "nim c -r src/hpack/hcollections.nim"
   exec "nim c -r src/hpack/encoder.nim"
   exec "nim c -r src/hpack/huffman_encoder.nim"

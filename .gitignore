@@ -7,6 +7,7 @@ src/hpack/decoder
 src/hpack/encoder
 src/hpack/strqueue
 src/hpack/hcollections
+src/hpack/ring
 tests/tests
 tests/testdata2
 tests/sometests

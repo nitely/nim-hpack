@@ -1,7 +1,11 @@
 ## Dynamic headers table
 
-import std/deques
-import ./exceptions
+{.push raises: [].}
+
+import
+  ./exceptions,
+  ./utils,
+  ./ring
 
 export
   exceptions
@@ -13,7 +17,7 @@ func strcopy(
   x: var openArray[char],
   y: openArray[char],
   xi, yi, xyLen: int
-) {.inline, raises: [].} =
+) {.inline.} =
   assert x.len >= xi+xyLen
   assert y.len >= yi+xyLen
   for i in 0 ..< xyLen:
@@ -24,7 +28,7 @@ func strcopy(
 func strcmp(
   x, y: openArray[char],
   xi, yi, xyLen: int
-): bool {.inline, raises: [].} =
+): bool {.inline.} =
   assert x.len >= xi+xyLen
   assert y.len >= yi+xyLen
   var diff = 0'u8
@@ -42,9 +46,9 @@ type HBounds* = object
 func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
   doAssert(
     n.a in 0 .. int32.high and
-    n.b in 0 .. int32.high and
+    n.b in -1 .. int32.high and
     v.a in 0 .. int32.high and
-    v.b in 0 .. int32.high
+    v.b in -1 .. int32.high
   )
   HBounds(
     n: n.a.int32 .. n.b.int32,
@@ -61,7 +65,7 @@ type DynHeaders* = object
   ## functions here take care of that
   s: string
   pos, filled: int
-  bounds: Deque[HBounds]
+  bounds: Ring[HBounds]
   size, maxSize*, initialSize, minSetSize: int
 
 func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
@@ -73,17 +77,16 @@ func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
     s: newString(strsize),
     pos: 0,
     filled: 0,
-    bounds: initDeque[HBounds](0),
     size: strsize,
     maxSize: strsize,
     initialSize: strsize,
     minSetSize: strsize
   )
 
-func len*(q: DynHeaders): int {.inline, raises: [].} =
+func len*(q: DynHeaders): int {.inline.} =
   q.bounds.len
 
-func clear*(q: var DynHeaders) {.inline, raises: [].} =
+func clear*(q: var DynHeaders) {.inline.} =
   ## Efficiently clear the table
   q.pos = 0
   q.filled = 0
@@ -94,17 +97,17 @@ func reset*(q: var DynHeaders) {.deprecated.} =
   ## Deprecated, use ``clear()`` instead
   q.clear()
 
-func `[]`*(q: DynHeaders, i: Natural): HBounds {.inline, raises: [].} =
+func `[]`*(q: DynHeaders, i: Natural): lent HBounds {.inline.} =
   q.bounds[i]
 
-func len(hb: HBounds): int {.inline, raises: [].} =
+func len(hb: HBounds): int {.inline.} =
   hb.n.len+hb.v.len
 
-func left(q: DynHeaders): Natural {.inline, raises: [].} =
+func left(q: DynHeaders): Natural {.inline.} =
   ## Return available space
   q.size-q.filled
 
-func pop(q: var DynHeaders): HBounds {.inline, raises: [].} =
+func pop(q: var DynHeaders): HBounds {.inline.} =
   ## Return and remove header
   ## from the table in FIFO order
   doAssert q.len > 0, "empty queue"
@@ -112,7 +115,7 @@ func pop(q: var DynHeaders): HBounds {.inline, raises: [].} =
   dec(q.filled, result.len+32)
   doAssert q.filled >= 0
 
-func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
+func add*(q: var DynHeaders, n, v: openArray[char]) =
   ## Add a header name and value to the table.
   ## Evicts entries that no longer fit.
   ## Items are added and removed in FIFO order
@@ -135,7 +138,7 @@ func add*(q: var DynHeaders, n, v: openArray[char]) {.raises: [].} =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
-func setSize*(q: var DynHeaders, strsize: Natural) {.raises: [].} =
+func setSize*(q: var DynHeaders, strsize: Natural) =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear it.
@@ -156,30 +159,34 @@ func setSize*(q: var DynHeaders, strsize: Natural) {.raises: [].} =
   while strsize < q.filled:
     discard q.pop()
 
-iterator items*(q: DynHeaders): HBounds {.inline, raises: [].} =
-  for b in q.bounds:
-    yield b
+iterator items*(q: DynHeaders): lent HBounds {.inline.} =
+  let L = len(q)
+  for i in 0 ..< q.len:
+    yield q[i]
+    assert(len(q) == L, "the length changed while iterating")
 
-iterator pairs*(q: DynHeaders): (int, HBounds) {.inline, raises: [].} =
-  for i, b in pairs q.bounds:
-    yield (i, b)
+iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
+  let L = len(q)
+  for i in 0 ..< q.len:
+    yield (i, q[i])
+    assert(len(q) == L, "the length changed while iterating")
 
-func substr*(q: DynHeaders, s: var string, x: Slice[int32]) {.raises: [].} =
+func substr*(q: DynHeaders, s: var string, x: Slice[int32]) =
   doAssert x.b+1 >= x.a
   let sLen = s.len
   let bLen = x.len
-  s.setLen(sLen+bLen)
+  s.setLenUninit2(sLen+bLen)
   let mLen = min(bLen, q.s.len-x.a)
   strcopy(s, q.s, sLen, x.a, mLen)
   strcopy(s, q.s, sLen+mLen, 0, bLen-mLen)
 
-func `==`*(a, b: DynHeaders): bool {.raises: [].} =
+func `==`*(a, b: DynHeaders): bool =
   for x, y in fields(a, b):
     if x != y:
       return false
   true
 
-func `$`*(q: DynHeaders): string {.raises: [].} =
+func `$`*(q: DynHeaders): string =
   ## Use it for debugging purposes only.
   ## Use ``substr`` and ``cmp`` for anything else
   result = ""
@@ -189,11 +196,11 @@ func `$`*(q: DynHeaders): string {.raises: [].} =
     q.substr(result, hb.v)
     result.add("\r\L")
 
-func cmp*(
+func cmp(
   q: DynHeaders,
   b: Slice[int32],
   s: openArray[char]
-): bool {.raises: [].} =
+): bool {.inline.} =
   ## Efficiently compare a header name
   ## or value against a string
   if b.len != s.len:
@@ -205,13 +212,29 @@ func cmp*(
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
 
-func minSetSize*(q: DynHeaders): int {.raises: [].} =
+func cmpN*(
+  q: DynHeaders,
+  i: int,
+  s: openArray[char]
+): bool =
+  assert i < q.len
+  cmp(q, q[i].n, s)
+
+func cmpV*(
+  q: DynHeaders,
+  i: int,
+  s: openArray[char]
+): bool =
+  assert i < q.len
+  cmp(q, q[i].v, s)
+
+func minSetSize*(q: DynHeaders): int =
   q.minSetSize
 
-func finalSetSize*(q: DynHeaders): int {.raises: [].} =
+func finalSetSize*(q: DynHeaders): int =
   q.size
 
-func hasResized*(q: DynHeaders): bool {.raises: [].} =
+func hasResized*(q: DynHeaders): bool =
   # we only care about len decrease (entry eviction)
   # and final len. If it was increased and restored
   # we don't care, it's a no-op
@@ -219,7 +242,7 @@ func hasResized*(q: DynHeaders): bool {.raises: [].} =
     q.initialSize != q.minSetSize or
     q.minSetSize != q.finalSetSize
 
-func clearLastResize*(q: var DynHeaders) {.raises: [].} =
+func clearLastResize*(q: var DynHeaders) =
   q.minSetSize = q.finalSetSize
   q.initialSize = q.finalSetSize
 
@@ -386,3 +409,24 @@ when isMainModule:
     #echo $dh
     doAssert $dh ==
       "zxc: asdqw\r\L"
+  block:
+    echo "Test DynHeaders empty name at 0"
+    var dh = initDynHeaders(256)
+    dh.add("", "x")
+    doAssert dh.filled == 1+32
+    doAssert dh[0] == initHBounds(0 .. -1, 0 .. 0)
+    doAssert $dh == ": x\r\L"
+  block:
+    echo "Test DynHeaders empty value at 0"
+    var a, b = newString(32)
+    for i in 0 .. a.len-1:
+      a[i] = 'a'
+      b[i] = 'b'
+    var dh = initDynHeaders(64)
+    dh.add(a, "")
+    # evicts the first entry; the name ends
+    # at the end of the buffer, so the value is at 0
+    dh.add(b, "")
+    doAssert dh.len == 1
+    doAssert dh[0] == initHBounds(32 .. 63, 0 .. -1)
+    doAssert $dh == b & ": \r\L"

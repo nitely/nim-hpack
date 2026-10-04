@@ -1,10 +1,13 @@
 ## HPACK decoder
 
+{.push raises: [].}
+
 import
   ./huffman_decoder,
   ./headers_data,
   ./hcollections,
-  ./exceptions
+  ./exceptions,
+  ./utils
 
 export
   hcollections,
@@ -17,7 +20,7 @@ type
 template raiseDecodeError(msg: string) =
   raise newException(DecodeError, msg)
 
-proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline.} =
+proc intdecode(s: openArray[byte], n: NbitPref, d: var int): int {.inline, raises: [DecodeError].} =
   ## Return number of consumed octets.
   ## ``n`` param is the N-bit prefix.
   ## Decoded int is assigned to ``d``
@@ -53,7 +56,7 @@ func strcopy(
   x: var openArray[char],
   y: openArray[byte],
   xi, yi, xyLen: int
-) {.inline, raises: [].} =
+) {.inline.} =
   assert x.len >= xi+xyLen
   assert y.len >= yi+xyLen
   for i in 0 ..< xyLen:
@@ -63,7 +66,7 @@ func strcopy(
 proc strdecode(
   s: openArray[byte],
   ss: var string
-): int {.inline.} =
+): int {.inline, raises: [DecodeError].} =
   ## Decode a literal string.
   ## Return number of consumed octets.
   ## Decoded string is appended to ``d``.
@@ -79,7 +82,7 @@ proc strdecode(
       raiseDecodeError("huffman error")
   else:
     let L = ss.len
-    ss.setLen(L + result-n)
+    ss.setLenUninit2(L + result-n)
     strcopy(ss, s, L, n, result-n)
 
 proc hname(
@@ -87,7 +90,7 @@ proc hname(
   i: Natural,
   ss: var string,
   nn: var Slice[int]
-) {.inline.} =
+) {.inline, raises: [DecodeError].} =
   ## Add header's name of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
@@ -109,7 +112,7 @@ proc header(
   i: Natural,
   ss: var string,
   nn, vv: var Slice[int]
-) {.inline.} =
+) {.inline, raises: [DecodeError].} =
   ## Add header of static/dynamic table
   ## in ``i`` position into a decoded string
   assert i > 0
@@ -147,7 +150,7 @@ proc litdecode(
   nn, vv: var Slice[int],
   np: NbitPref,
   store: bool
-): Natural {.inline.} =
+): Natural {.inline, raises: [DecodeError].} =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or
