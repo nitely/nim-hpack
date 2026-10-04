@@ -196,11 +196,11 @@ func `$`*(q: DynHeaders): string =
     q.substr(result, hb.v)
     result.add("\r\L")
 
-func cmp*(
+func cmp(
   q: DynHeaders,
   b: Slice[int32],
   s: openArray[char]
-): bool =
+): bool {.inline.} =
   ## Efficiently compare a header name
   ## or value against a string
   if b.len != s.len:
@@ -211,6 +211,22 @@ func cmp*(
     strcmp(s, q.s, mLen, 0, b.len-mLen)
     #s.toOpenArray(0, mLen-1) == q.s.toOpenArray(b.a, b.a+mLen-1) and
     #s.toOpenArray(mLen, b.len-1) == q.s.toOpenArray(0, b.len-mLen-1)
+
+func cmpN*(
+  q: DynHeaders,
+  i: int,
+  s: openArray[char]
+): bool =
+  assert i < q.len
+  cmp(q, q[i].n, s)
+
+func cmpV*(
+  q: DynHeaders,
+  i: int,
+  s: openArray[char]
+): bool =
+  assert i < q.len
+  cmp(q, q[i].v, s)
 
 func minSetSize*(q: DynHeaders): int =
   q.minSetSize

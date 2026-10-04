@@ -110,7 +110,7 @@ proc cmpTableValue(
   if i < headersTable.len:
     return s == headersTable[i][1]
   elif idyn < dh.len:
-    return cmp(dh, dh[idyn].v, s)
+    return cmpV(dh, idyn, s)
   else:
     doAssert false
 
@@ -163,8 +163,8 @@ proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
       if strcmp(v, headersTable[i][1]):
         return i
   let L = headersTable.len
-  for i, hb in dh.pairs:
-    if not cmp(dh, hb.n, h):
+  for i in 0 ..< dh.len:
+    if not cmpN(dh, i, h):
       continue
     if cmpTableValue(v, dh, L+i):
       return L+i
