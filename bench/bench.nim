@@ -6,11 +6,10 @@
 ## Every benchmark replays whole stories (fresh dynamic
 ## table per story) so dynamic table behavior is exercised.
 
-from std/strutils import parseHexStr, formatFloat, ffDecimal, alignLeft, align, contains
-import std/[os, json, monotimes, times, algorithm]
+import std/[os, json, monotimes, times, algorithm, strutils]
 
 import ../src/hpack
-import ../src/hpack/[huffman_encoder, huffman_decoder]
+import ../src/hpack/[huffman_encoder, huffman_decoder, utils]
 
 const testDataDir = currentSourcePath.parentDir.parentDir / "tests" / "testdata"
 
@@ -91,8 +90,8 @@ proc benchDecode(name: string) =
       for c in st:
         if c.tableSize >= 0:
           dh.setSize(c.tableSize)
-        ss.setLenUninit 0
-        bb.setLenUninit 0
+        ss.setLenUninit2 0
+        bb.setLenUninit2 0
         hdecodeAll(c.wire, dh, ss, bb)
         sink += ss.len
 
@@ -111,7 +110,7 @@ proc benchEncode(name: string, store: Store, huffman: bool) =
       dh.clear()
       dh.setSize(4096)
       for c in st:
-        s.setLenUninit 0
+        s.setLenUninit2 0
         for (n, v) in c.headers:
           hencode(n, v, dh, s, store, huffman)
         sink += s.len
@@ -135,12 +134,12 @@ proc benchHuffman() =
   var e = newSeq[byte]()
   measure("huffman encode (raw bytes)", rawLen, strs.len):
     for x in strs:
-      e.setLenUninit 0
+      e.setLenUninit2 0
       sink += hcencode(x, e)
   var d = ""
   measure("huffman decode (encoded bytes)", encLen, strs.len):
     for x in encoded:
-      d.setLenUninit 0
+      d.setLenUninit2 0
       sink += hcdecode(x, d)
 
 benchHuffman()
