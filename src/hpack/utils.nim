@@ -46,9 +46,11 @@ template setLenUninit2*(s, newlen: untyped): untyped =
 template asBytes*(s: openArray[char]): untyped =
   s.toOpenArrayByte(0, s.high)
 
-{.push checks: off.}
 func toString*(s: openArray[byte]): string =
   result = newString(s.len)
-  for i in 0 ..< s.len:
-    result[i] = s[i].char
-{.pop.}
+  when nimvm:
+    for i in 0 ..< s.len:
+      result[i] = s[i].char
+  else:
+    if s.len > 0:
+      copyMem(addr result[0], addr s[0], s.len)
