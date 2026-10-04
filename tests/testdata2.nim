@@ -4,6 +4,7 @@ import std/os
 import std/json
 
 import ../src/hpack
+import ../src/hpack/hcollections
 
 const testDataBaseDir = "tests/testdata/"
 
