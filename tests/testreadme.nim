@@ -12,7 +12,7 @@ block:
     0x8286'u16, 0x8441, 0x8cf1, 0xe3c2,
     0xe5f2, 0x3a6b, 0xa0ab, 0x90f4].toBytes & 0xff'u8
   var ss = ""
-  var bb = newSeq[HBounds]()
+  var bb = newSeq[HpackBound]()
   var dh = initHpack(256)
   hdecodeAll(req1, dh, ss, bb)
   assert(ss ==

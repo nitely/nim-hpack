@@ -3,11 +3,8 @@
 
 import
   ./hpack/encoder,
-  ./hpack/decoder,
-  ./hpack/hcollections
+  ./hpack/decoder
 
 export
   encoder,
-  decoder,
-  Hpack,
-  initHpack
+  decoder

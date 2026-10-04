@@ -10,8 +10,11 @@ import
   ./utils
 
 export
-  hcollections,
-  exceptions
+  exceptions,
+  HpackBound,
+  initHpackBound,
+  Hpack,
+  initHpack
 
 type
   NbitPref = range[1 .. 8]
@@ -242,7 +245,7 @@ proc hdecodeAll*(
   s: openArray[byte],
   dh: var Hpack,
   ss: var seq[byte],
-  bb: var seq[HBounds]
+  bb: var seq[HpackBound]
 ) {.raises: [DecodeError].} =
   ## Decode all headers from the blob of bytes
   ## ``s`` and stores it into a decoded string``d``.
@@ -260,14 +263,14 @@ proc hdecodeAll*(
     if dhSize > -1:
       dh.setSize dhSize
     else:
-      bb.add initHBounds(nn, vv)
+      bb.add initHpackBound(nn, vv)
   assert i == s.len
 
 proc hdecodeAll*(
   s: openArray[byte],
   dh: var Hpack,
   ss: var string,
-  bb: var seq[HBounds]
+  bb: var seq[HpackBound]
 ) {.raises: [DecodeError].} =
   ## Compat; slower than the ``seq[byte]`` version
   var b = @(ss.asBytes)

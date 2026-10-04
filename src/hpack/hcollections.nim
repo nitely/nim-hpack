@@ -12,11 +12,13 @@ export
 
 type DynHeadersError* = object of HpackError
 
-type HBounds* = object
-  ## Header's name and value boundaries
-  # XXX maybe this should be uint16,
-  #     but it'll limit the size to 32KB
-  n*, v*: Slice[int32]
+type
+  HBounds* = object
+    ## Header's name and value boundaries
+    # XXX maybe this should be uint16,
+    #     but it'll limit the size to 32KB
+    n*, v*: Slice[int32]
+  HpackBound* = HBounds
 
 func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
   doAssert(
@@ -29,6 +31,9 @@ func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
     n: n.a.int32 .. n.b.int32,
     v: v.a.int32 .. v.b.int32
   )
+
+func initHpackBound*(n, v: Slice[int]): HpackBound {.inline.} =
+  initHBounds(n, v)
 
 type
   DynHeaders* = object
