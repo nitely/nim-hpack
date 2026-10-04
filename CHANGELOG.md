@@ -1,3 +1,12 @@
+# v0.6.0
+
+* Bytes APIs
+* Breaking changes:
+  * Rename DynHeaders -> Hpack
+  * Rename initDynHeaders -> initHpack
+  * Rename HBounds -> HpackBound
+  * `hpack` no longer exports `hpack/hcollections`
+
 # v0.5.0
 
 * Bug fixes for Nim >= 2.2.8
