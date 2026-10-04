@@ -15,7 +15,8 @@ export
   initHpackBound,
   Hpack,
   initHpack,
-  setSize
+  setSize,
+  clear
 
 type
   NbitPref = range[1 .. 8]

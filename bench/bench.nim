@@ -80,9 +80,9 @@ proc benchDecode(name: string) =
     for c in st:
       wireLen += c.wire.len
       nHeaders += c.headers.len
-  var dh = initDynHeaders(4096)
+  var dh = initHpack(4096)
   var ss = newSeq[byte]()
-  var bb = newSeq[HBounds]()
+  var bb = newSeq[HpackBound]()
   measure("decode " & name, wireLen, nHeaders):
     for st in stories:
       dh.clear()
@@ -103,7 +103,7 @@ proc benchEncode(name: string, store: Store, huffman: bool) =
       nHeaders += c.headers.len
       for (n, v) in c.headers:
         rawLen += n.len + v.len
-  var dh = initDynHeaders(4096)
+  var dh = initHpack(4096)
   var s = newSeq[byte]()
   measure("encode " & name & " " & $store & " huffman=" & $huffman, rawLen, nHeaders):
     for st in stories:
