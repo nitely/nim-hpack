@@ -79,7 +79,7 @@ proc strdecode(
 
 proc hname(
   dh: Hpack,
-  i: Natural,
+  i: int,
   ss: var seq[byte],
   nn: var Slice[int]
 ) {.inline, raises: [DecodeError].} =
@@ -101,7 +101,7 @@ proc hname(
 
 proc header(
   dh: Hpack,
-  i: Natural,
+  i: int,
   ss: var seq[byte],
   nn, vv: var Slice[int]
 ) {.inline, raises: [DecodeError].} =
@@ -142,7 +142,7 @@ proc litdecode(
   nn, vv: var Slice[int],
   np: NbitPref,
   store: bool
-): Natural {.inline, raises: [DecodeError].} =
+): int {.inline, raises: [DecodeError].} =
   ## Decode literal header field:
   ## with incremental indexing,
   ## without indexing, or
@@ -185,7 +185,7 @@ proc hdecode*(
   ss: var seq[byte],
   nn, vv: var Slice[int],
   dhSize: var int
-): Natural {.raises: [DecodeError].} =
+): int {.raises: [DecodeError].} =
   ## Decode a single header.
   ## Return number of consumed octets.
   ## ``s`` bytes sequence must not be empty.
@@ -228,7 +228,7 @@ proc hdecode*(
   ss: var string,
   nn, vv: var Slice[int],
   dhSize: var int
-): Natural {.raises: [DecodeError].} =
+): int {.raises: [DecodeError].} =
   ## Compat; slower than the ``seq[byte]`` version
   let L = ss.len
   var b = newSeq[byte]()

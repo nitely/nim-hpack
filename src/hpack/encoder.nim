@@ -23,7 +23,7 @@ template bit(n: untyped): uint8 =
 type
   NbitPref = int8
 
-proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
+proc intencode(x: int, n: NbitPref, s: var seq[byte]): int {.inline.} =
   ## Encode using N-bit prefix.
   ## Return number of octets.
   ## First byte's 2^N bit is set for convenience
@@ -46,7 +46,7 @@ proc strencode(
   x: openArray[byte],
   s: var seq[byte],
   huffman: bool
-): Natural {.inline.} =
+): int {.inline.} =
   result = 0
   if huffman:
     inc(result, intencode(hcencodeLen(x), 7, s))
@@ -80,7 +80,7 @@ proc litencode(
 proc cmpTableValue(
   s: openArray[byte],
   dh: Hpack,
-  i: Natural
+  i: int
 ): bool {.inline.} =
   let idyn = i-headersTable.len
   if i < headersTable.len:
@@ -160,7 +160,7 @@ proc hencode(
   s: var seq[byte],
   store: Store,
   huffman: bool
-): Natural =
+): int =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -195,15 +195,15 @@ proc hencode*(
   s: var seq[byte],
   store = stoYes,
   huffman = true
-): Natural {.discardable.} =
+): int {.discardable.} =
   ## Encode a header name and value, and add
   ## it to ``s``. Return the number of octets
   hencode(h.asBytes, v.asBytes, dh, s, store, huffman)
 
 proc signalDynTableSizeUpdate*(
   s: var seq[byte],
-  size: Natural
-): Natural {.discardable.} =
+  size: int
+): int {.discardable.} =
   ## Add dynamic table size update
   ## field to the seq of bytes
   result = intencode(size, 5, s)
@@ -211,7 +211,7 @@ proc signalDynTableSizeUpdate*(
 func encodeLastResize*(
   dh: var Hpack,
   s: var seq[byte]
-): Natural {.discardable.} =
+): int {.discardable.} =
   ## Add last dynamic table resize signal
   ## to ``s``
   doAssert dh.minSetSize <= dh.finalSetSize

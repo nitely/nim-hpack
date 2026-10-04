@@ -78,13 +78,13 @@ func reset*(q: var DynHeaders) {.deprecated.} =
   ## Deprecated, use ``clear()`` instead
   q.clear()
 
-func `[]`*(q: DynHeaders, i: Natural): lent HBounds {.inline.} =
+func `[]`*(q: DynHeaders, i: int): lent HBounds {.inline.} =
   q.bounds[i]
 
 func len(hb: HBounds): int {.inline.} =
   hb.n.len+hb.v.len
 
-func left(q: DynHeaders): Natural {.inline.} =
+func left(q: DynHeaders): int {.inline.} =
   ## Return available space
   q.size-q.filled
 
@@ -119,7 +119,7 @@ func add*(q: var DynHeaders, n, v: openArray[byte]) =
   inc(q.filled, nvLen+32)
   doAssert q.filled <= q.size
 
-func setSize*(q: var DynHeaders, strsize: Natural) =
+func setSize*(q: var DynHeaders, strsize: int) =
   ## Resize the total headers max length.
   ## Evicts entries that don't fit anymore.
   ## Set to ``0`` to clear it.
