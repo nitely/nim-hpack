@@ -1,0 +1,2 @@
+nimTitle	huffman_decoder	hpack/huffman_decoder.html	module src/hpack/huffman_decoder		0
+nim	hcdecode	hpack/huffman_decoder.html#hcdecode,openArray[byte],seq[byte]	proc hcdecode(s: openArray[byte]; d: var seq[byte]): int		26

@@ -1,0 +1,8 @@
+nimTitle	ring	hpack/ring.html	module src/hpack/ring		0
+nim	Ring	hpack/ring.html#Ring	object Ring		5
+nim	len	hpack/ring.html#len,Ring[T]	proc len[T](r: Ring[T]): int		13
+nim	clear	hpack/ring.html#clear,Ring[T]	proc clear[T](r: var Ring[T])		16
+nim	`[]`	hpack/ring.html#[],Ring[T],int	proc `[]`[T](r: Ring[T]; i: int): lent T		21
+nim	addFirst	hpack/ring.html#addFirst,Ring[T],sinkT	proc addFirst[T](r: var Ring[T]; x: sink T)		35
+nim	popLast	hpack/ring.html#popLast,Ring[T]	proc popLast[T](r: var Ring[T]): T		42
+nim	`==`	hpack/ring.html#==,Ring[T],Ring[T]	proc `==`[T](a, b: Ring[T]): bool		47

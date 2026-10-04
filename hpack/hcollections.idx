@@ -1,0 +1,26 @@
+nimTitle	hcollections	hpack/hcollections.html	module src/hpack/hcollections		0
+nim	HpackBound	hpack/hcollections.html#HpackBound	object HpackBound		10
+nim	HBounds	hpack/hcollections.html#HBounds	type HBounds		15
+nim	initHpackBound	hpack/hcollections.html#initHpackBound,Slice[int],Slice[int]	proc initHpackBound(n, v: Slice[int]): HpackBound		17
+nim	initHBounds	hpack/hcollections.html#initHBounds,Slice[int],Slice[int]	proc initHBounds(n, v: Slice[int]): HBounds		29
+nim	Hpack	hpack/hcollections.html#Hpack	object Hpack		33
+nim	DynHeaders	hpack/hcollections.html#DynHeaders	type DynHeaders		45
+nim	initHpack	hpack/hcollections.html#initHpack,int	proc initHpack(strsize: int): Hpack		47
+nim	initDynHeaders	hpack/hcollections.html#initDynHeaders,int	proc initDynHeaders(strsize: int): DynHeaders		62
+nim	len	hpack/hcollections.html#len,Hpack	proc len(q: Hpack): int		65
+nim	clear	hpack/hcollections.html#clear,Hpack	proc clear(q: var Hpack)		68
+nim	reset	hpack/hcollections.html#reset,Hpack	proc reset(q: var Hpack)		75
+nim	`[]`	hpack/hcollections.html#[],Hpack,int	proc `[]`(q: Hpack; i: int): lent HpackBound		79
+nim	add	hpack/hcollections.html#add,Hpack,openArray[byte],openArray[byte]	proc add(q: var Hpack; n, v: openArray[byte])		97
+nim	setSize	hpack/hcollections.html#setSize,Hpack,int	proc setSize(q: var Hpack; strsize: int)		120
+nim	items	hpack/hcollections.html#items.i,Hpack	iterator items(q: Hpack): lent HpackBound		141
+nim	pairs	hpack/hcollections.html#pairs.i,Hpack	iterator pairs(q: Hpack): (int, HpackBound)		147
+nim	substr	hpack/hcollections.html#substr,Hpack,seq[byte],Slice[int32]	proc substr(q: Hpack; s: var seq[byte]; x: Slice[int32])		153
+nim	`==`	hpack/hcollections.html#==,Hpack,Hpack	proc `==`(a, b: Hpack): bool		162
+nim	`$`	hpack/hcollections.html#$,Hpack	proc `$`(q: Hpack): string		168
+nim	cmpN	hpack/hcollections.html#cmpN,Hpack,int,openArray[byte]	proc cmpN(q: Hpack; i: int; s: openArray[byte]): bool		195
+nim	cmpV	hpack/hcollections.html#cmpV,Hpack,int,openArray[byte]	proc cmpV(q: Hpack; i: int; s: openArray[byte]): bool		203
+nim	minSetSize	hpack/hcollections.html#minSetSize,Hpack	proc minSetSize(q: Hpack): int		211
+nim	finalSetSize	hpack/hcollections.html#finalSetSize,Hpack	proc finalSetSize(q: Hpack): int		214
+nim	hasResized	hpack/hcollections.html#hasResized,Hpack	proc hasResized(q: Hpack): bool		217
+nim	clearLastResize	hpack/hcollections.html#clearLastResize,Hpack	proc clearLastResize(q: var Hpack)		225

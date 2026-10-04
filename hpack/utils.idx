@@ -1,0 +1,8 @@
+nimTitle	utils	hpack/utils.html	module src/hpack/utils		0
+nim	strcopy	hpack/utils.html#strcopy,openArray[byte],openArray[byte],int,int,int	proc strcopy(x: var openArray[byte]; y: openArray[byte]; xi, yi, xyLen: int)		4
+nim	strcmp	hpack/utils.html#strcmp,openArray[byte],openArray[byte],int,int,int	proc strcmp(x, y: openArray[byte]; xi, yi, xyLen: int): bool		16
+nim	strcmp	hpack/utils.html#strcmp,openArray[byte],openArray[byte]	proc strcmp(x, y: openArray[byte]): bool		29
+nim	setLenUninit2	hpack/utils.html#setLenUninit2.t,untyped,untyped	template setLenUninit2(s, newlen: untyped): untyped		40
+nim	asBytes	hpack/utils.html#asBytes.t,openArray[char]	template asBytes(s: openArray[char]): untyped		46
+nim	toString	hpack/utils.html#toString,openArray[byte]	proc toString(s: openArray[byte]): string		49
+nimgrp	strcmp	hpack/utils.html#strcmp-procs-all	proc		16

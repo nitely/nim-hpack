@@ -1,0 +1,2 @@
+nimTitle	exceptions	hpack/exceptions.html	module src/hpack/exceptions		0
+nim	HpackError	hpack/exceptions.html#HpackError	object HpackError		4

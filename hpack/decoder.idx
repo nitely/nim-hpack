@@ -1,0 +1,8 @@
+nimTitle	decoder	hpack/decoder.html	module src/hpack/decoder		0
+nim	DecodeError	hpack/decoder.html#DecodeError	object DecodeError		18
+nim	hdecode	hpack/decoder.html#hdecode,openArray[byte],Hpack,seq[byte],Slice[int],Slice[int],int	proc hdecode(s: openArray[byte]; dh: var Hpack; ss: var seq[byte];\n        nn, vv: var Slice[int]; dhSize: var int): int		182
+nim	hdecode	hpack/decoder.html#hdecode,openArray[byte],Hpack,string,Slice[int],Slice[int],int	proc hdecode(s: openArray[byte]; dh: var Hpack; ss: var string;\n        nn, vv: var Slice[int]; dhSize: var int): int		225
+nim	hdecodeAll	hpack/decoder.html#hdecodeAll,openArray[byte],Hpack,seq[byte],seq[HpackBound]	proc hdecodeAll(s: openArray[byte]; dh: var Hpack; ss: var seq[byte];\n           bb: var seq[HpackBound])		241
+nim	hdecodeAll	hpack/decoder.html#hdecodeAll,openArray[byte],Hpack,string,seq[HpackBound]	proc hdecodeAll(s: openArray[byte]; dh: var Hpack; ss: var string;\n           bb: var seq[HpackBound])		266
+nimgrp	hdecodeall	hpack/decoder.html#hdecodeAll-procs-all	proc		241
+nimgrp	hdecode	hpack/decoder.html#hdecode-procs-all	proc		182
