@@ -1,6 +1,8 @@
 {.push raises: [].}
 
-import ./huffman_data
+import
+  ./huffman_data,
+  ./utils
 
 type
   State = enum
@@ -17,11 +19,11 @@ template consume(bits) {.dirty.} =
     result = -1
     return
   if hcfSym in state[stFlags.ord]:
-    d[i] = state[stSym.ord].char
+    d[i] = state[stSym.ord]
     inc i
     inc result
 
-proc hcdecode*(s: openArray[byte], d: var string): int {.inline.} =
+proc hcdecode*(s: openArray[byte], d: var seq[byte]): int {.inline.} =
   ## Huffman decoder.
   ## Return length of the decoded string.
   ## Return -1 on error.
@@ -34,7 +36,7 @@ proc hcdecode*(s: openArray[byte], d: var string): int {.inline.} =
   var
     state = [0'u8, 0, 0]
     i = d.len
-  d.setLen(d.len + s.len * 2)
+  d.setLenUninit2(d.len + s.len * 2)
   for b in s:
     consume(b shr 4)
     consume(b and 0x0f)
@@ -50,6 +52,6 @@ when isMainModule:
       byte 0b11111111, 0b11000111,
       0b11111111, 0b11111101,
       0b10001111]
-    var d = ""
-    doAssert(hcdecode(hc, d) != -1)
-    doAssert(d == "" & char(0) & char(1))
+    var d = newSeq[byte]()
+    doAssert(hcdecode(hc, d) == 2)
+    doAssert(d == @[0'u8, 1])

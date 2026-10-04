@@ -9,4 +9,5 @@ import
 export
   encoder,
   decoder,
-  hcollections
+  Hpack,
+  initHpack

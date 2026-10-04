@@ -42,20 +42,8 @@ proc intencode(x: Natural, n: NbitPref, s: var seq[byte]): int {.inline.} =
   s.add x.uint8
   inc result
 
-{.push checks: off.}
-func strcopy(
-  x: var openArray[byte],
-  y: openArray[char],
-  xi, yi, xyLen: int
-) {.inline.} =
-  assert x.len >= xi+xyLen
-  assert y.len >= yi+xyLen
-  for i in 0 ..< xyLen:
-    x[xi+i] = byte(y[yi+i])
-{.pop.}
-
 proc strencode(
-  x: openArray[char],
+  x: openArray[byte],
   s: var seq[byte],
   huffman: bool
 ): Natural {.inline.} =
@@ -73,7 +61,7 @@ proc strencode(
     strcopy(s, x, L, 0, x.len)
 
 proc litencode(
-  h, v: openArray[char],
+  h, v: openArray[byte],
   s: var seq[byte],
   hidx: int,
   np: NbitPref,
@@ -89,32 +77,20 @@ proc litencode(
     inc(result, strencode(h, s, huffman))
   inc(result, strencode(v, s, huffman))
 
-{.push checks: off.}
-func strcmp(
-  x, y: openArray[char]
-): bool {.inline.} =
-  if x.len != y.len:
-    return false
-  var diff = 0'u8
-  for i in 0 ..< x.len:
-    diff = diff or (x[i].uint8 xor y[i].uint8)
-  diff == 0
-{.pop.}
-
 proc cmpTableValue(
-  s: openArray[char],
-  dh: DynHeaders,
+  s: openArray[byte],
+  dh: Hpack,
   i: Natural
 ): bool {.inline.} =
   let idyn = i-headersTable.len
   if i < headersTable.len:
-    return s == headersTable[i][1]
+    return s == headersTable[i][1].asBytes
   elif idyn < dh.len:
     return cmpV(dh, idyn, s)
   else:
     doAssert false
 
-func fnv(s: openArray[char]): uint32 {.inline.} =
+func fnv(s: openArray[byte]): uint32 {.inline.} =
   ## FNV-1a hash
   result = 2166136261'u32
   for c in s:
@@ -136,7 +112,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
     var ok = true
     var i = 0
     while ok and i < headersTable.len:
-      let slot = staticSlot(fnv(headersTable[i][0]), seed)
+      let slot = staticSlot(fnv(headersTable[i][0].asBytes), seed)
       ok = slots[slot].first == -1
       slots[slot] = (i.int8, 0'i8)
       while i < headersTable.len and
@@ -149,7 +125,7 @@ func buildStaticNames(): (uint32, array[256, StaticSlot]) =
 
 const (staticSeed, staticNames) = buildStaticNames()
 
-proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
+proc findInTable(h, v: openArray[byte], dh: Hpack): int {.inline.} =
   ## Find a header name in table
   # note linear search here is fine;
   # for a 4KB table, there should be <100 entries;
@@ -157,10 +133,10 @@ proc findInTable(h, v: openArray[char], dh: DynHeaders): int {.inline.} =
   # disable indexing if needed
   var first = -1
   let x = staticNames[staticSlot(fnv(h), staticSeed)]
-  if x.first != -1 and strcmp(h, headersTable[x.first][0]):
+  if x.first != -1 and strcmp(h, headersTable[x.first][0].asBytes):
     first = x.first
     for i in x.first ..< x.first+x.count:
-      if strcmp(v, headersTable[i][1]):
+      if strcmp(v, headersTable[i][1].asBytes):
         return i
   let L = headersTable.len
   for i in 0 ..< dh.len:
@@ -178,13 +154,13 @@ type
     stoNo
     stoNever
 
-proc hencode*(
-  h, v: openArray[char],
-  dh: var DynHeaders,
+proc hencode(
+  h, v: openArray[byte],
+  dh: var Hpack,
   s: var seq[byte],
-  store = stoYes,
-  huffman = true
-): Natural {.discardable.} =
+  store: Store,
+  huffman: bool
+): Natural =
   let hidx = findInTable(h, v, dh)
   # Indexed
   if hidx != -1 and cmpTableValue(v, dh, hidx):
@@ -213,6 +189,17 @@ proc hencode*(
   of stoNever:
     result = litencode(h, v, s, hidx, 4, huffman)
 
+proc hencode*(
+  h, v: openArray[char],
+  dh: var Hpack,
+  s: var seq[byte],
+  store = stoYes,
+  huffman = true
+): Natural {.discardable.} =
+  ## Encode a header name and value, and add
+  ## it to ``s``. Return the number of octets
+  hencode(h.asBytes, v.asBytes, dh, s, store, huffman)
+
 proc signalDynTableSizeUpdate*(
   s: var seq[byte],
   size: Natural
@@ -222,7 +209,7 @@ proc signalDynTableSizeUpdate*(
   result = intencode(size, 5, s)
 
 func encodeLastResize*(
-  dh: var DynHeaders,
+  dh: var Hpack,
   s: var seq[byte]
 ): Natural {.discardable.} =
   ## Add last dynamic table resize signal

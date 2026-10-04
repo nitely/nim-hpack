@@ -9,40 +9,45 @@ proc toBytes(s: seq[uint16]): seq[byte] =
     result.add(byte(b shr 8))
     result.add(byte(b and 0xff))
 
+proc toString(s: seq[byte]): string =
+  result = newString(s.len)
+  for i in 0 ..< s.len:
+    result[i] = s[i].char
+
 suite "Test Huffman decoder":
   test "Test HC decode example.com":
     # from https://tools.ietf.org/html/rfc7541#appendix-C.4.1
     let msg = @[
       0xf1e3'u16, 0xc2e5, 0xf23a,
       0x6ba0, 0xab90, 0xf4ff].toBytes
-    var d = ""
+    var d = newSeq[byte]()
     check hcdecode(msg, d) != -1
-    check d == "www.example.com"
+    check d.toString == "www.example.com"
 
   test "Test HC decode no-cache":
     # from https://tools.ietf.org/html/rfc7541#appendix-C.4.2
     let msg = @[0xa8eb'u16, 0x1064, 0x9cbf].toBytes
-    var d = ""
+    var d = newSeq[byte]()
     check hcdecode(msg, d) != -1
-    check d == "no-cache"
+    check d.toString == "no-cache"
 
   test "Test HC decode custom":
     # from https://tools.ietf.org/html/rfc7541#appendix-C.4.3
     block:
       let msg = @[0x25a8'u16, 0x49e9, 0x5ba9, 0x7d7f].toBytes
-      var d = ""
+      var d = newSeq[byte]()
       check hcdecode(msg, d) != -1
-      check d == "custom-key"
+      check d.toString == "custom-key"
     block:
       var msg = @[0x25a8'u16, 0x49e9, 0x5bb8, 0xe8b4].toBytes
       msg.add(byte 0xbf'u8)
-      var d = ""
+      var d = newSeq[byte]()
       check hcdecode(msg, d) != -1
-      check d == "custom-value"
+      check d.toString == "custom-value"
 
   test "Should fail when has EOS":
     let msg = @[0xffff'u16, 0xffff].toBytes
-    var d = ""
+    var d = newSeq[byte]()
     check hcdecode(msg, d) == -1
 
 suite "Decoder - Test Header Field Representation Examples":
@@ -843,6 +848,35 @@ suite "Uncategorized tests":
     check s == ": x\r\n"
     check $dh == ": x\r\n"
     check bb == @[initHBounds(0 .. -1, 2 .. 2)]
+
+  test "Decode into a non-empty string":
+    var encDh = initDynHeaders(4096)
+    var ic = newSeq[byte]()
+    hencode("a", "b", encDh, ic, huffman = false)
+    hencode("cc", "dd", encDh, ic, huffman = false)
+    block:
+      var dh = initDynHeaders(4096)
+      var s = "x"
+      var nn, vv = 0 .. -1
+      var dhSize = -1
+      let n = hdecode(ic, dh, s, nn, vv, dhSize)
+      check s == "xa: b\r\n"
+      check s[nn] == "a"
+      check s[vv] == "b"
+      discard hdecode(
+        ic.toOpenArray(n, ic.len-1), dh, s, nn, vv, dhSize
+      )
+      check s == "xa: b\r\ncc: dd\r\n"
+      check s[nn] == "cc"
+      check s[vv] == "dd"
+    block:
+      var dh = initDynHeaders(4096)
+      var s = "x"
+      var bb = newSeq[HBounds]()
+      hdecodeAll(ic, dh, s, bb)
+      check s == "xa: b\r\ncc: dd\r\n"
+      check s[bb[1].n.a .. bb[1].n.b] == "cc"
+      check s[bb[1].v.a .. bb[1].v.b] == "dd"
 
   test "encodeLastResize no resize":
     var ic = newSeq[byte]()

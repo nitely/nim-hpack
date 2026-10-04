@@ -12,31 +12,6 @@ export
 
 type DynHeadersError* = object of HpackError
 
-{.push checks: off.}
-func strcopy(
-  x: var openArray[char],
-  y: openArray[char],
-  xi, yi, xyLen: int
-) {.inline.} =
-  assert x.len >= xi+xyLen
-  assert y.len >= yi+xyLen
-  for i in 0 ..< xyLen:
-    x[xi+i] = y[yi+i]
-{.pop.}
-
-{.push checks: off.}
-func strcmp(
-  x, y: openArray[char],
-  xi, yi, xyLen: int
-): bool {.inline.} =
-  assert x.len >= xi+xyLen
-  assert y.len >= yi+xyLen
-  var diff = 0'u8
-  for i in 0 ..< xyLen:
-    diff = diff or (x[xi+i].uint8 xor y[yi+i].uint8)
-  diff == 0
-{.pop.}
-
 type HBounds* = object
   ## Header's name and value boundaries
   # XXX maybe this should be uint16,
@@ -55,18 +30,21 @@ func initHBounds*(n, v: Slice[int]): HBounds {.inline.} =
     v: v.a.int32 .. v.b.int32
   )
 
-type DynHeaders* = object
-  ## A circular queue.
-  ## This is an implementaion of the
-  ## dynamic header table.
-  ## It can be efficiently reused.
-  ## ``HBounds`` ends may be out of bounds and
-  ## need to be wrapped around. All
-  ## functions here take care of that
-  s: string
-  pos, filled: int
-  bounds: Ring[HBounds]
-  size, maxSize*, initialSize, minSetSize: int
+type
+  DynHeaders* = object
+    ## A circular queue.
+    ## This is an implementaion of the
+    ## dynamic header table.
+    ## It can be efficiently reused.
+    ## ``HBounds`` ends may be out of bounds and
+    ## need to be wrapped around. All
+    ## functions here take care of that
+    s: seq[byte]
+    pos, filled: int
+    bounds: Ring[HBounds]
+    size, maxSize*, initialSize, minSetSize: int
+
+  Hpack* = DynHeaders
 
 func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## Initialize a dynamic headers table.
@@ -74,7 +52,7 @@ func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
   ## of all headers put together.
   doAssert strsize < int32.high div 2
   DynHeaders(
-    s: newString(strsize),
+    s: newSeq[byte](strsize),
     pos: 0,
     filled: 0,
     size: strsize,
@@ -82,6 +60,9 @@ func initDynHeaders*(strsize: int): DynHeaders {.inline.} =
     initialSize: strsize,
     minSetSize: strsize
   )
+
+func initHpack*(strsize: int): Hpack {.inline.} =
+  initDynHeaders(strsize)
 
 func len*(q: DynHeaders): int {.inline.} =
   q.bounds.len
@@ -115,7 +96,7 @@ func pop(q: var DynHeaders): HBounds {.inline.} =
   dec(q.filled, result.len+32)
   doAssert q.filled >= 0
 
-func add*(q: var DynHeaders, n, v: openArray[char]) =
+func add*(q: var DynHeaders, n, v: openArray[byte]) =
   ## Add a header name and value to the table.
   ## Evicts entries that no longer fit.
   ## Items are added and removed in FIFO order
@@ -147,7 +128,7 @@ func setSize*(q: var DynHeaders, strsize: Natural) =
   q.size = strsize
   # shrinking cannot be done efficiently
   # because of wrap around, so we don't ever shrink
-  # + Nim won't shrink strings anyway
+  # + Nim won't shrink seqs anyway
   # and grow needs to un-wrap around the headers
   if strsize > q.s.len:
     let oldLen = q.s.len
@@ -171,7 +152,7 @@ iterator pairs*(q: DynHeaders): (int, HBounds) {.inline.} =
     yield (i, q[i])
     assert(len(q) == L, "the length changed while iterating")
 
-func substr*(q: DynHeaders, s: var string, x: Slice[int32]) =
+func substr*(q: DynHeaders, s: var seq[byte], x: Slice[int32]) =
   doAssert x.b+1 >= x.a
   let sLen = s.len
   let bLen = x.len
@@ -189,17 +170,18 @@ func `==`*(a, b: DynHeaders): bool =
 func `$`*(q: DynHeaders): string =
   ## Use it for debugging purposes only.
   ## Use ``substr`` and ``cmp`` for anything else
-  result = ""
+  var s = newSeq[byte]()
   for hb in q:
-    q.substr(result, hb.n)
-    result.add(": ")
-    q.substr(result, hb.v)
-    result.add("\r\L")
+    q.substr(s, hb.n)
+    s.add ": ".asBytes
+    q.substr(s, hb.v)
+    s.add "\r\L".asBytes
+  s.toString
 
 func cmp(
   q: DynHeaders,
   b: Slice[int32],
-  s: openArray[char]
+  s: openArray[byte]
 ): bool {.inline.} =
   ## Efficiently compare a header name
   ## or value against a string
@@ -215,7 +197,7 @@ func cmp(
 func cmpN*(
   q: DynHeaders,
   i: int,
-  s: openArray[char]
+  s: openArray[byte]
 ): bool =
   assert i < q.len
   cmp(q, q[i].n, s)
@@ -223,7 +205,7 @@ func cmpN*(
 func cmpV*(
   q: DynHeaders,
   i: int,
-  s: openArray[char]
+  s: openArray[byte]
 ): bool =
   assert i < q.len
   cmp(q, q[i].v, s)
@@ -250,19 +232,19 @@ when isMainModule:
   block:
     echo "Test DynHeaders"
     var dh = initDynHeaders(256)
-    dh.add("cache-control", "private")
-    dh.add("date", "Mon, 21 Oct 2013 20:13:21 GMT")
-    dh.add("location", "https://www.example.com")
-    dh.add(":status", "307")
+    dh.add("cache-control".asBytes, "private".asBytes)
+    dh.add("date".asBytes, "Mon, 21 Oct 2013 20:13:21 GMT".asBytes)
+    dh.add("location".asBytes, "https://www.example.com".asBytes)
+    dh.add(":status".asBytes, "307".asBytes)
     doAssert($dh ==
       ":status: 307\r\L" &
       "location: https://www.example.com\r\L" &
       "date: Mon, 21 Oct 2013 20:13:21 GMT\r\L" &
       "cache-control: private\r\L")
-    dh.add("date", "Mon, 21 Oct 2013 20:13:22 GMT")
-    dh.add("content-encoding", "gzip")
-    dh.add("set-cookie", "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
-      "max-age=3600; version=1")
+    dh.add("date".asBytes, "Mon, 21 Oct 2013 20:13:22 GMT".asBytes)
+    dh.add("content-encoding".asBytes, "gzip".asBytes)
+    dh.add("set-cookie".asBytes, ("foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
+      "max-age=3600; version=1").asBytes)
     doAssert($dh ==
       "set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; " &
       "max-age=3600; version=1\r\L" &
@@ -271,7 +253,7 @@ when isMainModule:
   block:
     echo "Test DynHeaders filled"
     var dh = initDynHeaders(256)
-    dh.add("foo", "bar")
+    dh.add("foo".asBytes, "bar".asBytes)
     doAssert dh.filled == "foobar".len+32
     doAssert dh.pop() == initHBounds(
       0 ..< "foo".len,
@@ -283,17 +265,17 @@ when isMainModule:
     var s = newString(256-32)
     for i in 0 .. s.len-1:
       s[i] = 'a'
-    dh.add(s, "")
+    dh.add(s.asBytes, "".asBytes)
     doAssert dh.filled == 256
     discard dh.pop()
     doAssert dh.filled == 0
-    dh.add(s, "")
-    dh.add("a", "bc")
+    dh.add(s.asBytes, "".asBytes)
+    dh.add("a".asBytes, "bc".asBytes)
     doAssert dh.filled == "abc".len+32
   block:
     var dh = initDynHeaders(256)
-    dh.add("a", "bc")
-    dh.add("a", "bc")
+    dh.add("a".asBytes, "bc".asBytes)
+    dh.add("a".asBytes, "bc".asBytes)
     doAssert dh.filled == ("abc".len+32)*2
     discard dh.pop()
     doAssert dh.filled == "abc".len+32
@@ -302,12 +284,12 @@ when isMainModule:
   block:
     echo "Test DynHeaders length"
     var dh = initDynHeaders(1024)
-    dh.add("foo", "bar")
+    dh.add("foo".asBytes, "bar".asBytes)
     doAssert dh.len == 1
     discard dh.pop()
     doAssert dh.len == 0
     for _ in 0 ..< 4:
-      dh.add("a", "bc")
+      dh.add("a".asBytes, "bc".asBytes)
     doAssert dh.len == 4
     for _ in 0 ..< 4:
       discard dh.pop()
@@ -315,36 +297,36 @@ when isMainModule:
   block:
     echo "Test DynHeaders strsize"
     var dh = initDynHeaders(76)
-    dh.add("asd", "asd")
+    dh.add("asd".asBytes, "asd".asBytes)
     doAssert dh.filled == 38
-    dh.add("qwe", "qwe")
+    dh.add("qwe".asBytes, "qwe".asBytes)
     doAssert dh.filled == 76
     doAssert dh.len == 2
-    var res = ""
+    var res = newSeq[byte]()
     dh.substr(res, dh[0].n)
     dh.substr(res, dh[0].v)
-    doAssert res == "qweqwe"
-    res = ""
+    doAssert res.toString == "qweqwe"
+    res.setLen 0
     dh.substr(res, dh[1].n)
     dh.substr(res, dh[1].v)
-    doAssert res == "asdasd"
-    dh.add("a", "")
+    doAssert res.toString == "asdasd"
+    dh.add("a".asBytes, "".asBytes)
     doAssert dh.filled == 71
     doAssert dh.len == 2
-    res = ""
+    res.setLen 0
     dh.substr(res, dh[0].n)
     dh.substr(res, dh[0].v)
-    doAssert res == "a"
-    res = ""
+    doAssert res.toString == "a"
+    res.setLen 0
     dh.substr(res, dh[1].n)
     dh.substr(res, dh[1].v)
-    doAssert res == "qweqwe"
+    doAssert res.toString == "qweqwe"
   block:
     echo "Test DynHeaders resize"
     var dh = initDynHeaders(256)
-    dh.add("asd", "asd")
-    dh.add("qwe", "qwe")
-    dh.add("zxc", "zxc")
+    dh.add("asd".asBytes, "asd".asBytes)
+    dh.add("qwe".asBytes, "qwe".asBytes)
+    dh.add("zxc".asBytes, "zxc".asBytes)
     doAssert dh.len == 3
     dh.setSize(100)
     doAssert dh.len == 2
@@ -353,7 +335,7 @@ when isMainModule:
       "qwe: qwe\r\L"
     dh.setSize(0)
     doAssert dh.len == 0
-    dh.add("zxc", "zxc")
+    dh.add("zxc".asBytes, "zxc".asBytes)
     doAssert dh.len == 0
     dh.setSize(256)
     doAssert dh.len == 0
@@ -362,7 +344,7 @@ when isMainModule:
     echo "Test DynHeaders shrink"
     var dh = initDynHeaders(500)
     for _ in 0 .. 200:
-      dh.add("asd", "qwe")
+      dh.add("asd".asBytes, "qwe".asBytes)
     dh.setSize(100)
     doAssert $dh ==
       "asd: qwe\r\L" &
@@ -372,7 +354,7 @@ when isMainModule:
     echo "Test DynHeaders grow"
     var dh = initDynHeaders(123)
     for _ in 0 .. 63:
-      dh.add("zxc", "asdqw")
+      dh.add("zxc".asBytes, "asdqw".asBytes)
     dh.setSize(234)
     #echo $dh
     doAssert $dh ==
@@ -383,7 +365,7 @@ when isMainModule:
     echo "Test DynHeaders grow 2"
     var dh = initDynHeaders(123)
     for _ in 0 .. 63:
-      dh.add("zxc", "asdqw")
+      dh.add("zxc".asBytes, "asdqw".asBytes)
     dh.setSize(256)
     #echo $dh
     doAssert $dh ==
@@ -394,7 +376,7 @@ when isMainModule:
     echo "Test DynHeaders grow 3"
     var dh = initDynHeaders(123)
     for _ in 0 .. 63:
-      dh.add("zxc", "asdqw")
+      dh.add("zxc".asBytes, "asdqw".asBytes)
     dh.setSize(124)
     #echo $dh
     doAssert $dh ==
@@ -404,7 +386,7 @@ when isMainModule:
   block:
     echo "Test DynHeaders grow 4"
     var dh = initDynHeaders(123)
-    dh.add("zxc", "asdqw")
+    dh.add("zxc".asBytes, "asdqw".asBytes)
     dh.setSize(234)
     #echo $dh
     doAssert $dh ==
@@ -412,7 +394,7 @@ when isMainModule:
   block:
     echo "Test DynHeaders empty name at 0"
     var dh = initDynHeaders(256)
-    dh.add("", "x")
+    dh.add("".asBytes, "x".asBytes)
     doAssert dh.filled == 1+32
     doAssert dh[0] == initHBounds(0 .. -1, 0 .. 0)
     doAssert $dh == ": x\r\L"
@@ -423,10 +405,10 @@ when isMainModule:
       a[i] = 'a'
       b[i] = 'b'
     var dh = initDynHeaders(64)
-    dh.add(a, "")
+    dh.add(a.asBytes, "".asBytes)
     # evicts the first entry; the name ends
     # at the end of the buffer, so the value is at 0
-    dh.add(b, "")
+    dh.add(b.asBytes, "".asBytes)
     doAssert dh.len == 1
     doAssert dh[0] == initHBounds(32 .. 63, 0 .. -1)
     doAssert $dh == b & ": \r\L"
