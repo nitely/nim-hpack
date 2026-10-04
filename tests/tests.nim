@@ -61,7 +61,7 @@ suite "Decoder - Test Header Field Representation Examples":
       nn = 0 .. -1
       vv = 0 .. -1
       dhSize = -1
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
     check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
     check s[nn] == "custom-key"
     check s[vv] == "custom-header"
@@ -78,7 +78,7 @@ suite "Decoder - Test Header Field Representation Examples":
       nn = 0 .. -1
       vv = 0 .. -1
       dhSize = -1
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
     check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
     check s[nn] == ":path"
     check s[vv] == "/sample/path"
@@ -95,7 +95,7 @@ suite "Decoder - Test Header Field Representation Examples":
       nn = 0 .. -1
       vv = 0 .. -1
       dhSize = -1
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
     check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
     check s[nn] == "password"
     check s[vv] == "secret"
@@ -109,7 +109,7 @@ suite "Decoder - Test Header Field Representation Examples":
       nn = 0 .. -1
       vv = 0 .. -1
       dhSize = -1
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
     check hdecode(ic, dh, s, nn, vv, dhSize) == ic.len
     check s[nn] == ":method"
     check s[vv] == "GET"
@@ -117,7 +117,7 @@ suite "Decoder - Test Header Field Representation Examples":
     check dhSize == -1
 
 suite "Decoder - Request Examples without Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Request":
     var
@@ -126,7 +126,7 @@ suite "Decoder - Request Examples without Huffman Coding":
         0x2e65, 0x7861, 0x6d70, 0x6c65,
         0x2e63, 0x6f6d].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
@@ -148,7 +148,7 @@ suite "Decoder - Request Examples without Huffman Coding":
         0x8286'u16, 0x84be, 0x5808, 0x6e6f,
         0x2d63, 0x6163, 0x6865].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
@@ -176,7 +176,7 @@ suite "Decoder - Request Examples without Huffman Coding":
     ic.add(byte 0x65'u16)
     var
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":method", "GET"],
         [":scheme", "https"],
@@ -197,7 +197,7 @@ suite "Decoder - Request Examples without Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Decoder - Request Examples with Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Request":
     var ic = @[
@@ -206,7 +206,7 @@ suite "Decoder - Request Examples with Huffman Coding":
     ic.add(byte 0xff'u16)
     var
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
@@ -228,7 +228,7 @@ suite "Decoder - Request Examples with Huffman Coding":
         0x8286'u16, 0x84be, 0x5886,
         0xa8eb, 0x1064, 0x9cbf].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":method", "GET"],
         [":scheme", "http"],
@@ -254,7 +254,7 @@ suite "Decoder - Request Examples with Huffman Coding":
         0x49e9, 0x5ba9, 0x7d7f, 0x8925,
         0xa849, 0xe95b, 0xb8e8, 0xb4bf].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":method", "GET"],
         [":scheme", "https"],
@@ -275,7 +275,7 @@ suite "Decoder - Request Examples with Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Decoder - Response Examples without Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Response":
     var
@@ -290,7 +290,7 @@ suite "Decoder - Response Examples without Huffman Coding":
         0x7777, 0x2e65, 0x7861, 0x6d70,
         0x6c65, 0x2e63, 0x6f6d].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":status", "302"],
         ["cache-control", "private"],
@@ -315,7 +315,7 @@ suite "Decoder - Response Examples without Huffman Coding":
       ic = @[
         0x4803'u16, 0x3330, 0x37c1, 0xc0bf].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":status", "307"],
         ["cache-control", "private"],
@@ -352,7 +352,7 @@ suite "Decoder - Response Examples without Huffman Coding":
         0x2076, 0x6572, 0x7369, 0x6f6e,
         0x3d31].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":status", "200"],
         ["cache-control", "private"],
@@ -376,7 +376,7 @@ suite "Decoder - Response Examples without Huffman Coding":
       "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L"
 
 suite "Decoder - Response Examples with Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Response":
     var
@@ -389,7 +389,7 @@ suite "Decoder - Response Examples with Huffman Coding":
         0x1718, 0x63c7, 0x8f0b, 0x97c8,
         0xe9ae, 0x82ae, 0x43d3].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":status", "302"],
         ["cache-control", "private"],
@@ -414,7 +414,7 @@ suite "Decoder - Response Examples with Huffman Coding":
       ic = @[
         0x4883'u16, 0x640e, 0xffc1, 0xc0bf].toBytes
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":status", "307"],
         ["cache-control", "private"],
@@ -449,7 +449,7 @@ suite "Decoder - Response Examples with Huffman Coding":
     ic.add(byte 0x07'u8)
     var
       s = ""
-      bb = newSeq[HBounds]()
+      bb = newSeq[HpackBound]()
       expected = [
         [":status", "200"],
         ["cache-control", "private"],
@@ -475,7 +475,7 @@ suite "Decoder - Response Examples with Huffman Coding":
 suite "Encoder - Header Field Representation Examples":
   test "Literal Header Field with Indexing":
     var
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
       ic = newSeq[byte]()
       expected = @[
         0x400a'u16, 0x6375, 0x7374, 0x6f6d,
@@ -488,7 +488,7 @@ suite "Encoder - Header Field Representation Examples":
 
   test "Literal Header Field without Indexing":
     var
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
       ic = newSeq[byte]()
       expected = @[
         0x040c'u16, 0x2f73, 0x616d,
@@ -501,7 +501,7 @@ suite "Encoder - Header Field Representation Examples":
 
   test "Literal Header Field Never Indexed":
     var
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
       ic = newSeq[byte]()
       expected = @[
         0x1008'u16, 0x7061, 0x7373, 0x776f,
@@ -515,7 +515,7 @@ suite "Encoder - Header Field Representation Examples":
 
   test "Indexed Header Field":
     var
-      dh = initDynHeaders(256)
+      dh = initHpack(256)
       ic = newSeq[byte]()
       expected = @[byte 0x82'u8]
     doAssert hencode(
@@ -525,7 +525,7 @@ suite "Encoder - Header Field Representation Examples":
     doAssert dh.len == 0
 
 suite "Encoder - Request Examples without Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Request":
     var
@@ -591,7 +591,7 @@ suite "Encoder - Request Examples without Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Encoder - Request Examples with Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Request":
     var
@@ -652,7 +652,7 @@ suite "Encoder - Request Examples with Huffman Coding":
       ":authority: www.example.com\r\L"
 
 suite "Encoder - Response Examples without Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Response":
     var
@@ -735,7 +735,7 @@ suite "Encoder - Response Examples without Huffman Coding":
       "date: Mon, 21 Oct 2013 20:13:22 GMT\r\L"
 
 suite "Encoder - Response Examples with Huffman Coding":
-  var dh = initDynHeaders(256)
+  var dh = initHpack(256)
 
   test "First Response":
     var
@@ -816,46 +816,46 @@ suite "Encoder - Response Examples with Huffman Coding":
 
 suite "Uncategorized tests":
   test "Empty header value":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     var ic = newSeq[byte]()
     hencode("pragma", "", dh, ic, huffman = false)
     var s = ""
-    var bb = newSeq[HBounds]()
+    var bb = newSeq[HpackBound]()
     dh.clear()
     hdecodeAll(ic, dh, s, bb)
     check s == "pragma: \r\n"
     check $dh == "pragma: \r\n"
 
   test "Empty header value huffman":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     var ic = newSeq[byte]()
     hencode("pragma", "", dh, ic, huffman = true)
     var s = ""
-    var bb = newSeq[HBounds]()
+    var bb = newSeq[HpackBound]()
     dh.clear()
     hdecodeAll(ic, dh, s, bb)
     check s == "pragma: \r\L"
     check $dh == "pragma: \r\L"
 
   test "Empty header name":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     var ic = newSeq[byte]()
     hencode("", "x", dh, ic, huffman = false)
     var s = ""
-    var bb = newSeq[HBounds]()
+    var bb = newSeq[HpackBound]()
     dh.clear()
     hdecodeAll(ic, dh, s, bb)
     check s == ": x\r\n"
     check $dh == ": x\r\n"
-    check bb == @[initHBounds(0 .. -1, 2 .. 2)]
+    check bb == @[initHpackBound(0 .. -1, 2 .. 2)]
 
   test "Decode into a non-empty string":
-    var encDh = initDynHeaders(4096)
+    var encDh = initHpack(4096)
     var ic = newSeq[byte]()
     hencode("a", "b", encDh, ic, huffman = false)
     hencode("cc", "dd", encDh, ic, huffman = false)
     block:
-      var dh = initDynHeaders(4096)
+      var dh = initHpack(4096)
       var s = "x"
       var nn, vv = 0 .. -1
       var dhSize = -1
@@ -870,9 +870,9 @@ suite "Uncategorized tests":
       check s[nn] == "cc"
       check s[vv] == "dd"
     block:
-      var dh = initDynHeaders(4096)
+      var dh = initHpack(4096)
       var s = "x"
-      var bb = newSeq[HBounds]()
+      var bb = newSeq[HpackBound]()
       hdecodeAll(ic, dh, s, bb)
       check s == "xa: b\r\ncc: dd\r\n"
       check s[bb[1].n.a .. bb[1].n.b] == "cc"
@@ -880,12 +880,12 @@ suite "Uncategorized tests":
 
   test "encodeLastResize no resize":
     var ic = newSeq[byte]()
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     check encodeLastResize(dh, ic) == 0
     check ic.len == 0
 
   test "encodeLastResize resize to 0":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     dh.setSize 0
     var ic2 = newSeq[byte]()
     let expected = signalDynTableSizeUpdate(ic2, 0)
@@ -894,7 +894,7 @@ suite "Uncategorized tests":
     check ic == ic2
 
   test "encodeLastResize resize to 0 and 4096":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     dh.setSize 0
     dh.setSize 4096
     var ic2 = newSeq[byte]()
@@ -906,7 +906,7 @@ suite "Uncategorized tests":
     check ic == ic2
 
   test "encodeLastResize multi resizes":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     dh.setSize 0
     dh.setSize 123
     dh.setSize 1024
@@ -921,7 +921,7 @@ suite "Uncategorized tests":
     check ic == ic2
 
   test "clearLastResize":
-    var dh = initDynHeaders(4096)
+    var dh = initHpack(4096)
     dh.setSize 0
     var ic = newSeq[byte]()
     check encodeLastResize(dh, ic) == 1
@@ -937,25 +937,25 @@ suite "Uncategorized tests":
 
   test "Encoded update signal":
     # encoder
-    var encDh = initDynHeaders(4096)
+    var encDh = initHpack(4096)
     encDh.setSize 1024
     var ic = newSeq[byte]()
     discard encodeLastResize(encDh, ic)
     # decoder
-    var decDh = initDynHeaders(4096)
+    var decDh = initHpack(4096)
     check decDh.finalSetSize == 4096
     var s = ""
-    var bb = newSeq[HBounds]()
+    var bb = newSeq[HpackBound]()
     hdecodeAll(ic, decDh, s, bb)
     check decDh.finalSetSize == 1024
 
   test "Encoded update signal tries to exceed the max size":
-    var encDh = initDynHeaders(4096)
+    var encDh = initHpack(4096)
     encDh.setSize 100_000
     var ic = newSeq[byte]()
     discard encodeLastResize(encDh, ic)
-    var decDh = initDynHeaders(4096)
+    var decDh = initHpack(4096)
     var s = ""
-    var bb = newSeq[HBounds]()
+    var bb = newSeq[HpackBound]()
     doAssertRaises(DecodeError):
       hdecodeAll(ic, decDh, s, bb)
